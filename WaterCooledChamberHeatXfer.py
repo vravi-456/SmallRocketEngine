@@ -26,7 +26,7 @@ runObj = CEA_Obj(oxName='LOX',fuelName='CH4')
 Pc = 1500 * ureg.psi
 eps = 35
 MR = 3.6
-contractionRatio = 5.0
+contractionRatio = 4.0
 output = 'siunits'
 wallThickness = 0.0025 * ureg.inches
 wallThickness.ito(ureg.meter)
