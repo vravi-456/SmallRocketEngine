@@ -1,0 +1,56 @@
+GFSSP VERSION
+    701
+GFSSP INSTALLATION PATH
+C:\Program Files (x86)\GFSSP701EV\
+ANALYST
+Vishal Ravi
+INPUT DATA FILE NAME
+C:\Users\visha\OneDrive - purdue.edu\Small Rocket Engine\Github\SmallRocketEngine\GFSSP\Air Blowdown SI\inp_ex8
+OUTPUT FILE NAME
+C:\Users\visha\OneDrive - purdue.edu\Small Rocket Engine\Github\SmallRocketEngine\GFSSP\Air Blowdown SI\out_ex8
+TITLE
+Copy of GFSSP Example 8
+USETUP
+F
+DENCON        GRAVITY       ENERGY        MIXTURE       THRUST        STEADY        TRANSV        SAVER
+F             F             T             F             F             F             T             F
+HEX           HCOEF         REACTING      INERTIA       CONDX         ADDPROP       PRINTI        ROTATION
+F             F             F             F             F             F             T             F
+BUOYANCY      HRATE         INVAL         MSORCE        MOVBND        TPA           VARGEO        TVM
+F             T             F             F             F             F             F             F
+SHEAR         PRNTIN        PRNTADD       OPVALVE       TRANSQ        CONJUG        RADIAT        WINPLOT
+F             T             T             F             F             F             F             T
+PRESS         INSUC         VARROT        CYCLIC        CHKVALS       WINFILE       DALTON        NOSTATS
+F             F             F             F             T             T             F             F
+NORMAL        SIMUL         SECONDL       NRSOLVT       IBDF          NOPLT         PRESREG       FLOWREG
+F             T             F             T             1             T             0             0
+TRANS_MOM     USERVARS      PSMG          ISOLVE        PLOTADD       SIUNITS       TECPLOT       MDGEN
+T             F             F             1             F             T             F             F
+NUM_USER_VARS IFR_MIX       PRINTD        SATTABL       MSORIN        PRELVLV       LAMINAR       HSTAG
+1             1             T             F             F             F             F             T
+DFLI          NRSOLVH       SPARSMS       IOPTPSY       MPLOT
+T             F             F             0             F             
+NNODES        NINT          NBR           NF
+ 2            1            1            1
+RELAXK        RELAXD        RELAXH        CC            NITER         RELAXNR       RELAXHC       RELAXTS
+ 1               0.5             1               0.0001          500 1               1               1              
+DTAU          TIMEF         TIMEL         NPSTEP        NPWSTEP       WPLSTEP       WPLBUFF       NPMSTEP
+ 0.1             0                200               1         1         50        1.1               1
+NFLUID(I),  I = 1, NF
+ 33
+RREF         CPREF         GAMREF        EMUREF        AKREF        PREF        TREF        HREF        SREF
+ 53.3425949       0.240047294877    1.39970474771249   5.690557840968e-06   4.1329261476e-06   14.7004411212     80.00006          0                 0              
+NODE          INDEX     DESCRIPTION
+ 1              2       " Atmosphere"
+ 2              1       " Air Tank"
+ NODE  PRES (kPa)        TEMP(DEGC)  MASS SOURC    HEAT SOURC   THRST AREA   NODE-VOLUME  CONCENTRATION
+ 2     100.0000132452           79.988    0               0               0               17280.0047528472 
+ C:\Users\visha\OneDrive - purdue.edu\Small Rocket Engine\Github\SmallRocketEngine\GFSSP\Air Blowdown SI\Ex8Hist.dat
+INODE         NUMBR         NAMEBR
+ 2             1            21
+BRANCH   UPNODE    DNNODE    OPTION    DESCRIPTION
+21         2          1          22      "Orifice" 
+BRANCH        OPTION -22     AREA       FLOW COEF
+ 21                         0.00785       1         
+INITIAL FLOWRATES IN BRANCHES FOR UNSTEADY FLOW
+ 21 0

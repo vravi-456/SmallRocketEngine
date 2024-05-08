@@ -8,24 +8,24 @@ Atmosphere
 0 0 0
 0 0 0 0
 0 0 0
-101.3529279 15.5555555 0 0 0 0 0 0 0 0 0 0
+101.325 26.66 0 0 0 0 0 0 0 0 0 0
 NULL NULL NULL NULL
 0 0 0 0
 0 0 0 0 0 0 0 0 0 0
 0 0 0 0 0 0 0 0 0
 0 -20 0 1
 0 0
-Hist1.dat
+C:\Users\visha\OneDrive - purdue.edu\Small Rocket Engine\Github\SmallRocketEngine\GFSSP\Air Blowdown SI\Ex8Hist.dat
 1
-1 6 Oxygen G
+1 33 Ideal Gas
 1
 2
-Oxygen Tank
+Air Tank
 67 66
 0 0 0
 0 0 0 0
 0 0 0
-101.353 43.3334 0 0 0 0 0 0 0 0 0 0
+689.476 26.66 0 0 0 0.28316847 0 0 0 0 0 0
 NULL NULL NULL NULL
 0 0 0 0
 0 0 0 0 0 0 0 0 0 1
@@ -33,7 +33,7 @@ NULL NULL NULL NULL
 0 -20 0 1
 0 0
 1
-1 52285784 Oxygen G
+1 3145777 Ideal Gas
 ENDOFFLUIDNODES
 0
 1
@@ -52,13 +52,13 @@ NULL
 Orifice
 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
 0 0 0 0 0 0 0 0
-0 0
+5.06451e-06 1
 1
 NULL
-Oxygen Leg of Test Stand
+Copy of GFSSP Example 8
 Vishal Ravi
-C:\Users\visha\OneDrive - purdue.edu\Small Rocket Engine\Github\SmallRocketEngine\GFSSP\inp
-C:\Users\visha\OneDrive - purdue.edu\Small Rocket Engine\Github\SmallRocketEngine\GFSSP\out
+C:\Users\visha\OneDrive - purdue.edu\Small Rocket Engine\Github\SmallRocketEngine\GFSSP\Air Blowdown SI\inp_ex8
+C:\Users\visha\OneDrive - purdue.edu\Small Rocket Engine\Github\SmallRocketEngine\GFSSP\Air Blowdown SI\out_ex8
 C:\Program Files (x86)\GFSSP701EV\gfssp701EV.exe
 0
 0
@@ -73,8 +73,8 @@ FBRANCH.DAT
 1 1 1
 1 1 0 1 0 0 1 1 0
 0.0001 1 0.5 1 500 1 1 1
-2 0 0
-1 1 0 1 1 1 1 0 1 50 1.1 0
+0 0 0
+1 1 1 1 1 1 1 0 1 50 1.1 0
 0 1
 0 1
 1
@@ -90,7 +90,7 @@ FBRANCH.DAT
 0 0 0 0 0 1
 0 0
 0
-101.353 43.3334 0 0 0 10 50 0.005
+101.353 15.5556 0 0 0 10 50 0.005
 15.55556 0 0 0
 1 0 0
 1 1 1 1 1
@@ -101,7 +101,7 @@ FBRANCH.DAT
 0 0 0 0 0 0 0 0
 0 0 0 0 0 0 0 0
 0 0 0 0 0
-2 0.01 0 10
+2 0.1 0 200
 1 0 0 0
 1000 0
 0 2 0 0
@@ -110,8 +110,8 @@ FBRANCH.DAT
 0
 1
 0 0 0
-1 0
-6 Oxygen G
+1 1
+33 Ideal Gas
 0 0 0 0 0 0
 AKFL1.DAT RHOFL1.DAT EMUFL1.DAT GAMFL1.DAT HFL1.DAT SFL1.DAT CPFL1.DAT SATFL1.DAT 0 0
 AKFL2.DAT RHOFL2.DAT EMUFL2.DAT GAMFL2.DAT HFL2.DAT SFL2.DAT CPFL2.DAT SATFL2.DAT 0 0
