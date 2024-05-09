@@ -1,0 +1,9 @@
+debugging differences in downstream pressure reg plot
+differences in my model
+
+difference - expalanation for why that might cause NASA solution to be different
+ADDPROP false - GASPak maybe used for fluid properties
+PRINTI false - not printing initial guess (might give insight into why initial numerical difference exists)
+CHKSVALS true - "certain values to be checked for reasonableness"
+SECONDL false - uses entropy formulation
+NRSOLVT true - shouldn't have any effect
