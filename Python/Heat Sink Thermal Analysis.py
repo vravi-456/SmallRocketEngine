@@ -6,7 +6,7 @@ import scipy.integrate as integrate
 from sklearn.linear_model import LinearRegression
 from scipy.special import tandg
 
-from DrivingDesignParameters import P_c, Thrust, MR, oxidizer, fuel, CR
+from DrivingDesignParameters import P_c, MR, oxidizer, fuel, CR, mdot, exit_eps, A_t
 
 bar_to_psi = 14.5038
 psi_to_Pa = 6894.7572931783
@@ -96,22 +96,7 @@ def getVal(input_string, keyword, region):
 # create rocketcea object
 obj = rocketcea.cea_obj_w_units.CEA_Obj(oxName=oxidizer, fuelName=fuel, temperature_units='K', specific_heat_units='J/kg-K', thermal_cond_units='W/cm-degC', density_units='kg/m^3', sonic_velocity_units='m/s', cstar_units='m/s', fac_CR=CR)
 
-# Set given conditions
-c_star = obj.get_Cstar(P_c, MR) # m/s
-Thrust = 200 * lbf_to_N # N
-exit_eps = 6 # unitless, exit area expansion ratio
-Isp_vac = obj.get_Isp(P_c, MR, exit_eps)
-P_e = (1/obj.get_PcOvPe(P_c, MR, exit_eps))*P_c # psi
-Isp_SL = Isp_vac - exit_eps*(c_star/g)*(P_e/P_c) # CEA uses P_amb = P_e
-# Isp_SL = Isp_vac - exit_eps*(c_star/g)*(P_amb/P_c)
-mdot = Thrust/(Isp_SL*g) # kg/s
-c_f = obj.get_PambCf(Pc=P_c, MR=MR, eps=1) # roughly 1.25
-Isp_throat = obj.get_Throat_Isp(Pc=P_c, MR=MR)
-F_throat = Isp_throat*mdot*g # about 160 lbf
-
 # nozzle sizing
-
-A_t = mdot*c_star/(P_c*psi_to_Pa) # m^2
 r_t = np.sqrt(A_t/pi) # m
 A_e = exit_eps*A_t # m
 r_e = np.sqrt(A_e/pi) # m

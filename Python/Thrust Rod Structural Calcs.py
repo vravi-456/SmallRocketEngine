@@ -1,3 +1,9 @@
+import numpy as np
+import rocketcea.cea_obj_w_units, rocketcea
+import matplotlib.pyplot as plt
+
+from DrivingDesignParameters import P_c
+
 # normal and bending stress calcs
 rod_ys = 54000 # psi, thrust rod yield strength, 1018 carbon steel
 d_rod = 0.75 # in

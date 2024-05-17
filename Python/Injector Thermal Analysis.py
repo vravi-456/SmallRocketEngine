@@ -105,7 +105,7 @@ P_e = (1/obj.get_PcOvPe(P_c, MR, exit_eps))*P_c # psi
 Isp_SL = Isp_vac - exit_eps*(c_star/g)*(P_e/P_c) # CEA uses P_amb = P_e
 # Isp_SL = Isp_vac - exit_eps*(c_star/g)*(P_amb/P_c)
 mdot = Thrust/(Isp_SL*g) # kg/s
-c_f = obj.get_PambCf(Pc=P_c, MR=MR, eps=1) # roughly 1.25
+# c_f = obj.get_PambCf(Pc=P_c, MR=MR, eps=1) # roughly 1.25
 Isp_throat = obj.get_Throat_Isp(Pc=P_c, MR=MR)
 F_throat = Isp_throat*mdot*g # about 160 lbf
 
@@ -310,8 +310,6 @@ for i, x in enumerate(x_list):
     
       # fill in entire 2d array (temperature distributions for all time steps at a single axial location)
       T_all[i,:,:] = T_allTime
-
-
 
 # extract temperatures at certain locations
 d_list = d_list * m_to_in
