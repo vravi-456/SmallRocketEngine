@@ -4,9 +4,8 @@ This file documents the driving design parameters for the engine
 """
 
 import rocketcea.cea_obj_w_units, rocketcea
+from CommonUnitConversions import *
 
-lbf_to_N = 4.448
-psi_to_Pa = 6894.7572931783
 g = 9.81 # m/s^2
 
 P_c = 300 # psi
