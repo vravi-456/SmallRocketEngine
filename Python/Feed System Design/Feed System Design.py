@@ -6,6 +6,13 @@ from DrivingDesignParameters import P_c, MR, mdot, dP_Pc
 from FannoFlow import *
 from CommonUnitConversions import *
 
+"""
+
+This feed system analysis tool assumes your feed system is a fluid line exactly like that in "P&ID.vsdx v8" (same fluid components in the same order), 
+AND you are trying to determine the max required Cv of the regulator, the required Cv of the solenoid, and the area of the sonic orifice restriction. 
+
+"""
+
 def findP2_massBalance(P_2, C_d, A_t, gamma, R, T, rho, regSetPressure, S_g, C_v_solenoid, P_tank, fluid):
     """
     Enforce conservation of mass and iterate on the solenoid downstream pressure until it converges
@@ -143,6 +150,8 @@ Z_ox_list = np.zeros(len(t_list))
 P_ox_solenoidOut_list = np.zeros(len(t_list)) # pressures on outlet side of solenoid valve
 P_ox_injectorIn_list = np.zeros(len(t_list))
 Q_ox_list = np.zeros(len(t_list))
+S_g_ox_list = np.zeros(len(t_list))
+Q_ox_SCFM_list = np.zeros(len(t_list))
 
 V_ox_tank = 20 * ft3_to_m3 # m^3, ox tank volume
 P_ox_tank_0 = 2000 * psi_to_Pa # Pa, initial ox tank pressure
@@ -181,7 +190,7 @@ T_n2_tank_0 = 300 # K, initial nitrogen tank temperature
 
 # oxygen side
 mdot_ox_0 = MR/(MR+1)*mdot # kg/s
-# S_g_ox = 1.105
+S_g_ox = 1.105
 gamma = 1.4
 chokedPressureRatio = ((gamma+1)/2)**(gamma/(gamma-1)) # upstream over downstream
 regSetPressureOx = 900 # psi, outlet pressure
@@ -211,10 +220,11 @@ for i, t in enumerate(t_list):
       # accounting for compressibility as well
       Z = cp.PropsSI('Z', 'P', P_ox_tank, 'T', T_ox_tank_0, 'oxygen')
       Q_ox_SCFM = Q_ox / Z * (P_ox_tank*Pa_to_psi)/14.7 * m3_to_ft3 * min_to_s # ft^3/min
+      # I think I should be using reg outlet pressure here instead of tank pressure
 
-      S_g_ox = rho_ox/rho_std
+      # S_g_ox = rho_ox/rho_std
       C_v_reg = Q_ox_SCFM*2*np.sqrt(S_g_ox)/(P_ox_tank*Pa_to_psi) # SCFM/psi (for gases)
-
+ 
       # compute required solenoid valve Cv
       P_solenoidOut = P_solenoidOut_init # psi
       dP_init = regSetPressureOx - P_solenoidOut # psi
@@ -262,7 +272,7 @@ for i, t in enumerate(t_list):
       Q_ox_SCFM = Q_ox / Z * (P_ox_tank*Pa_to_psi)/14.7 * m3_to_ft3 * min_to_s # ft^3/min
   
       # compute reg Cv
-      S_g_ox = rho_ox/rho_std
+      # S_g_ox = rho_ox/rho_std
       C_v_reg = Q_ox_SCFM*2*np.sqrt(S_g_ox)/(P_ox_tank*Pa_to_psi)
           
       # Throwing an error if flow through sonic orifice isn't choked
@@ -286,8 +296,10 @@ for i, t in enumerate(t_list):
     Cv_ox_reg_list[i] = C_v_reg
     Z_ox_list[i] = cp.PropsSI('Z', 'P', P_ox_tank, 'T', T_ox_tank_0, 'oxygen')
     P_ox_solenoidOut_list[i] = P_solenoidOut
-    Q_ox_list[i] = Q_ox_SCFM
+    Q_ox_list[i] = Q_ox
+    Q_ox_SCFM_list[i] = Q_ox_SCFM
     P_ox_injectorIn_list[i] = P_ox_injectorIn
+    S_g_ox_list[i] = S_g_ox
     
 d_ox_SO = np.sqrt(4*A_t/np.pi)*m_to_in
 C_v_ox_solenoid = C_v_solenoid
@@ -533,6 +545,13 @@ if not error:
     plt.ylabel('Volumetric flow rate [m^3/s]')
     plt.xlabel('Time [s]')
     plt.legend(['Ox', 'Fuel'])
+    
+    plt.figure()
+    plt.plot(t_list, Q_ox_SCFM_list, '.')
+    plt.title('Volumetric flow rates vs time')
+    plt.ylabel('Volumetric flow rate [SCFM]')
+    plt.xlabel('Time [s]')
+    plt.legend(['Ox'])
 
 # plt.figure()
 # plt.plot(t_list, rho_ox_tank_list, t_list, rho_fu_tank_list)
