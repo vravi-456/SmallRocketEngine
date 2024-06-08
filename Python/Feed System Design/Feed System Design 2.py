@@ -19,9 +19,10 @@ import matplotlib.pyplot as plt
 import sys
 
 sys.path.insert(0, "C:/Users/visha/OneDrive - purdue.edu/Small Rocket Engine/Github/SmallRocketEngine/Python")
-from DrivingDesignParameters import P_c, MR, mdot, dP_Pc
-from FannoFlow import *
+from DrivingDesignParameters import P_c, dP_Pc
+# from FannoFlow import *
 from CommonUnitConversions import *
+from FlowCurveInterpolator import computeEndpoint, computeFlowRate
 
 def findP2_massBalance(P_2, C_d, A_t, gamma, R, T, rho, regSetPressure, S_g, C_v_solenoid, P_tank, fluid):
     """
@@ -100,6 +101,13 @@ def findP2_subcriticalFlow(P_2_guess, P_1, C_v, Q_g, S_g):
     dP = P_1 - P_2_guess
     return abs(C_v*np.sqrt(dP*P_2_guess) - Q_g*np.sqrt(S_g))
 
+def findSonicOrificeOutletPressure(P_1_guess, mdot, C_d, A_2, T_1, gamma, P_2, fluid):
+    
+    c_p = cp.PropsSI('Cpmass', 'T', T_1, 'P', P_1_guess * psi_to_Pa, fluid) # J/kg/K, specific heat (assumed constant), static temp equals stagnation because of no inlet velocity assumption
+    rho_1 = cp.PropsSI('D', 'T', T_1, 'P', P_1_guess * psi_to_Pa, fluid) # kg/m^3
+    
+    return abs(mdot - C_d*A_2*rho_1*np.sqrt(2*c_p*T_1*((P_2/P_1_guess)**(2/gamma) - (P_2/P_1_guess)**((gamma+1)/gamma))))
+
 def extractLinePressures(t, fluid):
     """
     Get line pressures at each station for an instant in time    
@@ -148,7 +156,10 @@ numSteps = 100
 dt = (t_end - t_start)/numSteps # s
 t_list = np.linspace(t_start, t_end, numSteps+1)
 
-rho_std = cp.PropsSI('D', 'T', 20 + 273.15, 'P', 101325, 'air') # kg/m^3
+# data points needed for interpolation of flow curve on page 14 of MS-06-114
+x_list = [36.58349285, 92, 2.514396455] 
+y_list = [379.0909039, 379.0909039, 472.7272739]
+
 
 # ox side variable initialization
 m_ox_list = np.zeros(len(t_list)) # tank gas masses
@@ -203,13 +214,13 @@ T_n2_tank_0 = 300 # K, initial nitrogen tank temperature
 S_g_ox = 1.105
 gamma = 1.4
 chokedPressureRatio = ((gamma+1)/2)**(gamma/(gamma-1)) # upstream over downstream
-P_ox_regOutlet_init = 450 # psi, outlet pressure, will change due to supply pressure effect
+P_ox_regOutlet_init = 450 + 14.7 # psia, outlet pressure, will change due to supply pressure effect
 C_d_ox_SO = 1 # sonic orifice Cd
 C_d_ox_inj = 1 # ox injector element Cd
 R = 8.314 / (32/1000) # J/kg/K
 SPE = 1.5 # Supply Pressure Effect (%). Found on page 6 of MS-02-230. For regulator with Cv = 0.06 and pressure control range between 0 and above 250 psig. In my case it's between 0 and 500 psig.
 F_g = 0.94 # specific gravity correction factor, page 4 of MS-06-114
-C_v_solenoid = 0.2
+C_v_solenoid = 1.7
 for i, t in enumerate(t_list):
     
     if t == 0:
@@ -220,10 +231,9 @@ for i, t in enumerate(t_list):
     
         # use inlet pressure (either tank pressure or tank pressure minus losses) and outlet pressure reg will provide (accounting for SPE) to determine N2 flow rate in SCFM
         # assumes immediate mechanical response of regulator
-        P_ox_regOutlet = P_ox_regOutlet_init # psi  
-        
-        Q_N2_SCFM = 5; # ft^3/min, here is where you interpolate the flow curve
-        # note that outlet pressure on flow curve is in psig, psia needed for calcs
+        [x_endpoint, y_endpoint] = computeEndpoint(P_ox_tank, x_list[0], y_list[0], x_list[1], y_list[1])
+        P_ox_regOutlet = P_ox_regOutlet_init # psia  
+        Q_N2_SCFM = computeFlowRate(x_list[2], y_list[2], x_endpoint, y_endpoint, P_ox_regOutlet); # ft^3/min, here is where you interpolate the flow curve
     
         # manipulate N2 SCFM value to get O2 flow rate in m^3/s
         Q_ox_SCFM = Q_N2_SCFM * F_g # ft^3/min
@@ -243,8 +253,9 @@ for i, t in enumerate(t_list):
         # determine size of ox injector orifice
         P_ox_injectorIn = (1 + dP_Pc) * P_c # psi
         dP_inj = (P_ox_injectorIn - P_c) * psi_to_Pa # Pa
-        rho_inj = cp.PropsSI('D', 'T', T_ox_tank_0, 'P', P_ox_injectorIn * psi_to_Pa, 'oxygen') # kg/m^3, assuming dP_inj is small enough that changes in density are small
-        A_ox_inj = mdot_ox/(C_d_ox_inj*np.sqrt(2*rho_inj*dP_inj)) # m^2
+        rho_ox_injectorIn = cp.PropsSI('D', 'T', T_ox_tank_0, 'P', P_ox_injectorIn * psi_to_Pa, 'oxygen') # kg/m^3
+        c_p = cp.PropsSI('Cpmass', 'T', T_ox_tank_0, 'P', P_ox_injectorIn * psi_to_Pa, 'oxygen') # J/kg/K
+        A_ox_2 = mdot_ox/(C_d_ox_inj*rho_ox_injectorIn*np.sqrt(2*c_p*T_ox_tank_0*((P_c/P_ox_injectorIn)**(2/gamma) - (P_c/P_ox_injectorIn)**((gamma+1)/gamma)))) # m^2, injector outlet area
         
         # compute required size of sonic orifice
         # making sure flow is choked through sonic orifice
@@ -273,10 +284,9 @@ for i, t in enumerate(t_list):
       dP_inlet = abs(P_ox_tank - P_ox_tank_list[i-1]) * psi_to_Pa # Pa, assumes tank pressure is equivalent to regulator inlet
       P_outlet = P_outlet_old + dP_inlet * (SPE / 100) # Pa
       
+      [x_endpoint, y_endpoint] = computeEndpoint(P_ox_tank, x_list[0], y_list[0], x_list[1], y_list[1])
       P_ox_regOutlet = P_outlet * Pa_to_psi # psi  
-      
-      Q_N2_SCFM = 5; # ft^3/min, here is where you interpolate the flow curve
-      # note that outlet pressure on flow curve is in psig, psia needed for calcs
+      Q_N2_SCFM = computeFlowRate(x_list[2], y_list[2], x_endpoint, y_endpoint, P_ox_regOutlet); # ft^3/min, here is where you interpolate the flow curve
       
       # manipulate N2 SCFM value to get O2 flow rate in m^3/s
       Q_ox_SCFM = Q_N2_SCFM * F_g # ft^3/min
@@ -295,8 +305,12 @@ for i, t in enumerate(t_list):
           
       # Throwing an error if flow through sonic orifice isn't choked
       P_up_orifice = P_solenoidOut # psi, pressure upstream of the sonic orifice
-      rho_inj = cp.PropsSI('D', 'T', T_ox_tank_0, 'P', P_c * psi_to_Pa, 'oxygen') # kg/m^3, assuming dP_inj is small enough that changes in density are small
-      P_down_orifice = (mdot_ox/(C_d_ox_inj*A_ox_inj))**2/(2*rho_inj) * Pa_to_psi + P_c # psi, pressure downstream of the sonic orifice 
+      # rho_inj = cp.PropsSI('D', 'T', T_ox_tank_0, 'P', P_c * psi_to_Pa, 'oxygen') # kg/m^3, assuming dP_inj is small enough that changes in density are small
+      # P_down_orifice = (mdot_ox/(C_d_ox_inj*A_ox_inj))**2/(2*rho_inj) * Pa_to_psi + P_c # psi, pressure downstream of the sonic orifice 
+      
+      res = minimize_scalar(findSonicOrificeOutletPressure, bounds=[P_c, P_up_orifice], args=(mdot_ox, C_d_ox_inj, A_ox_2, T_ox_tank_0, gamma, P_c, 'oxygen'))
+      P_down_orifice = res.x # psi
+      
       P_ox_injectorIn = P_down_orifice # approximating as same pressure entering ox side of injector
       if P_up_orifice/P_down_orifice < chokedPressureRatio:
           print(f'!!!!!\n\nError Ox 2: Flow is not choked through ox sonic orifice. The sonic orifice area computed at initial timestep will not choke flow at t = {t} seconds, i = {i}.\n\n!!!!!')
@@ -551,12 +565,12 @@ if not error:
         
     #     n += 1    
 
-    plt.figure()
-    plt.plot(t_list, Q_ox_list, '.', t_list, Q_fu_list)
-    plt.title('Volumetric flow rates vs time')
-    plt.ylabel('Volumetric flow rate [m^3/s]')
-    plt.xlabel('Time [s]')
-    plt.legend(['Ox', 'Fuel'])
+    # plt.figure()
+    # plt.plot(t_list, Q_ox_list, '.', t_list, Q_fu_list)
+    # plt.title('Volumetric flow rates vs time')
+    # plt.ylabel('Volumetric flow rate [m^3/s]')
+    # plt.xlabel('Time [s]')
+    # plt.legend(['Ox', 'Fuel'])
     
     plt.figure()
     plt.plot(t_list, Q_ox_SCFM_list, '.')
