@@ -9,8 +9,6 @@ void setup() {
 void loop() {
   // put your main code here, to run repeatedly:
   digitalWrite(relayPin, LOW);
-  delay(500);
-  digitalWrite(relayPin, HIGH);
-  delay(500);
+  delay(5000);
   Serial.print("Here");
 }

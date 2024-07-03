@@ -20,7 +20,7 @@ import sys
 
 sys.path.insert(0, "C:/Users/visha/OneDrive - purdue.edu/Small Rocket Engine/Github/SmallRocketEngine/Python")
 from DrivingDesignParameters import P_c, dP_Pc
-# from FannoFlow import *
+from FannoFlow import *
 from CommonUnitConversions import *
 from FlowCurveInterpolator import computeEndpoint, computeFlowRate
 
@@ -101,7 +101,7 @@ def findP2_subcriticalFlow(P_2_guess, P_1, C_v, Q_g, S_g):
     dP = P_1 - P_2_guess
     return abs(C_v*np.sqrt(dP*P_2_guess) - Q_g*np.sqrt(S_g))
 
-def findSonicOrificeOutletPressure(P_1_guess, mdot, C_d, A_2, T_1, gamma, P_2, fluid):
+def findInjectorInletPressure(P_1_guess, mdot, C_d, A_2, T_1, gamma, P_2, fluid):
     
     c_p = cp.PropsSI('Cpmass', 'T', T_1, 'P', P_1_guess * psi_to_Pa, fluid) # J/kg/K, specific heat (assumed constant), static temp equals stagnation because of no inlet velocity assumption
     rho_1 = cp.PropsSI('D', 'T', T_1, 'P', P_1_guess * psi_to_Pa, fluid) # kg/m^3
@@ -160,41 +160,88 @@ t_list = np.linspace(t_start, t_end, numSteps+1)
 x_list = [36.58349285, 92, 2.514396455] 
 y_list = [379.0909039, 379.0909039, 472.7272739]
 
+tubeID = 0.194 * in_to_m # m, 0.028" wall thickness
+A_tube = np.pi*(tubeID/2)**2 # m^2
+f = 0.005
+L2 = 5 * in_to_m # m, distance from regulator outlet to solenoid inlet, assume a straight line
+L3 = 5 * in_to_m # m, distance from solenoid outlet to sonic orifice inlet, assume a straight line
+L4 = 5 * in_to_m # m, distance from sonic orifice outlet to injector inlet, assume a straight line
 
 # ox side variable initialization
 m_ox_list = np.zeros(len(t_list)) # tank gas masses
 mdot_ox_list = np.zeros(len(t_list)) # mass flows
-P_ox_tank_list = np.zeros(len(t_list)) # tank pressures
 rho_ox_tank_list = np.zeros(len(t_list)) # tank densities
-Cv_ox_reg_list = np.zeros(len(t_list))
 Z_ox_list = np.zeros(len(t_list))
+P_ox_tank_list = np.zeros(len(t_list)) # tank pressures
 P_ox_regulatorOut_list = np.zeros(len(t_list)) # pressures on the outlet side of regulator
+P_ox_solenoidIn_list = np.zeros(len(t_list))
 P_ox_solenoidOut_list = np.zeros(len(t_list)) # pressures on outlet side of solenoid valve
+P_ox_sonicOrificeIn_list = np.zeros(len(t_list))
+P_ox_sonicOrificeOut_list = np.zeros(len(t_list))
 P_ox_injectorIn_list = np.zeros(len(t_list))
+V_ox_regulatorOut_list = np.zeros(len(t_list))
+V_ox_solenoidIn_list = np.zeros(len(t_list))
+V_ox_solenoidOut_list = np.zeros(len(t_list))
+V_ox_sonicOrificeIn_list = np.zeros(len(t_list))
+V_ox_sonicOrificeOut_list = np.zeros(len(t_list))
+V_ox_injectorIn_list = np.zeros(len(t_list))
+M_ox_regulatorOut_list = np.zeros(len(t_list))
+M_ox_solenoidIn_list = np.zeros(len(t_list))
+M_ox_solenoidOut_list = np.zeros(len(t_list))
+M_ox_sonicOrificeIn_list = np.zeros(len(t_list))
+M_ox_sonicOrificeOut_list = np.zeros(len(t_list))
+M_ox_injectorIn_list = np.zeros(len(t_list))
+T_ox_regulatorOut_list = np.zeros(len(t_list))
+T_ox_solenoidIn_list = np.zeros(len(t_list))
+T_ox_solenoidOut_list = np.zeros(len(t_list))
+T_ox_sonicOrificeIn_list = np.zeros(len(t_list))
+T_ox_sonicOrificeOut_list = np.zeros(len(t_list))
+T_ox_injectorIn_list = np.zeros(len(t_list))
 Q_ox_list = np.zeros(len(t_list))
-S_g_ox_list = np.zeros(len(t_list))
 Q_ox_SCFM_list = np.zeros(len(t_list))
 
-V_ox_tank = 20 * ft3_to_m3 # m^3, ox tank volume
-P_ox_tank_0 = 2000 # psi, initial ox tank pressure
+V_ox_tank = 1.76 * ft3_to_m3 # m^3, ox tank volume
+P_ox_tank_0 = 2400 # psi, initial ox tank pressure
 P_ox_tank = P_ox_tank_0 # initially
 T_ox_tank_0 = 300 # K, initial ox tank temperature
 
 # fuel side variable initialization
 m_fu_list = np.zeros(len(t_list)) # tank gas masses
 mdot_fu_list = np.zeros(len(t_list)) # mass flows
-P_fu_tank_list = np.zeros(len(t_list)) # tank pressures
 rho_fu_tank_list = np.zeros(len(t_list)) # tank densities
-Cv_fu_reg_list = np.zeros(len(t_list))
 Z_fu_list = np.zeros(len(t_list))
+P_fu_tank_list = np.zeros(len(t_list)) # tank pressures
+P_fu_regulatorOut_list = np.zeros(len(t_list)) # pressures on the outlet side of regulator
+P_fu_solenoidIn_list = np.zeros(len(t_list))
 P_fu_solenoidOut_list = np.zeros(len(t_list)) # pressures on outlet side of solenoid valve
+P_fu_sonicOrificeIn_list = np.zeros(len(t_list))
+P_fu_sonicOrificeOut_list = np.zeros(len(t_list))
 P_fu_injectorIn_list = np.zeros(len(t_list))
+V_fu_regulatorOut_list = np.zeros(len(t_list))
+V_fu_solenoidIn_list = np.zeros(len(t_list))
+V_fu_solenoidOut_list = np.zeros(len(t_list))
+V_fu_sonicOrificeIn_list = np.zeros(len(t_list))
+V_fu_sonicOrificeOut_list = np.zeros(len(t_list))
+V_fu_injectorIn_list = np.zeros(len(t_list))
+M_fu_regulatorOut_list = np.zeros(len(t_list))
+M_fu_solenoidIn_list = np.zeros(len(t_list))
+M_fu_solenoidOut_list = np.zeros(len(t_list))
+M_fu_sonicOrificeIn_list = np.zeros(len(t_list))
+M_fu_sonicOrificeOut_list = np.zeros(len(t_list))
+M_fu_injectorIn_list = np.zeros(len(t_list))
+T_fu_regulatorOut_list = np.zeros(len(t_list))
+T_fu_solenoidIn_list = np.zeros(len(t_list))
+T_fu_solenoidOut_list = np.zeros(len(t_list))
+T_fu_sonicOrificeIn_list = np.zeros(len(t_list))
+T_fu_sonicOrificeOut_list = np.zeros(len(t_list))
+T_fu_injectorIn_list = np.zeros(len(t_list))
 Q_fu_list = np.zeros(len(t_list))
+Q_fu_SCFM_list = np.zeros(len(t_list))
 
-V_fu_tank = 20 * ft3_to_m3 # m^3, fuel tank volume
-P_fu_tank_0 = 2000 * psi_to_Pa # Pa, initial fuel tank pressure
+V_fu_tank = 1.76 * ft3_to_m3 # m^3, fu tank volume, size of 1 k-bottle
+P_fu_tank_0 = 2400 # psi, initial fu tank pressure
 P_fu_tank = P_fu_tank_0 # initially
-T_fu_tank_0 = 300 # K, initial fuel tank temperature
+T_fu_tank_0 = 300 # K, initial fu tank temperature
 
 # nitrogen variable initialization
 m_n2_list = np.zeros(len(t_list)) # list of nitrogen tank masses
@@ -205,8 +252,8 @@ Cv_n2_reg_list = np.zeros(len(t_list))
 P_n2_solenoidOut_list = np.zeros(len(t_list)) # pressures on outlet side of solenoid valve
 Q_n2_list = np.zeros(len(t_list))
 
-V_n2_tank = 20 * ft3_to_m3 # m^3, nitrogen tank volume
-P_n2_tank_0 = 2000 * psi_to_Pa # Pa, initial nitrogen tank pressure
+V_n2_tank = 1.76 * ft3_to_m3 # m^3, nitrogen tank volume, size of 1 k-bottle
+P_n2_tank_0 = 2400 * psi_to_Pa # Pa, initial nitrogen tank pressure
 P_n2_tank = P_n2_tank_0 # initially
 T_n2_tank_0 = 300 # K, initial nitrogen tank temperature
 
@@ -214,7 +261,7 @@ T_n2_tank_0 = 300 # K, initial nitrogen tank temperature
 S_g_ox = 1.105
 gamma = 1.4
 chokedPressureRatio = ((gamma+1)/2)**(gamma/(gamma-1)) # upstream over downstream
-P_ox_regOutlet_init = 450 + 14.7 # psia, outlet pressure, will change due to supply pressure effect
+P_ox_regulatorOut_init = 450 + 14.7 # psia, outlet pressure, will change due to supply pressure effect
 C_d_ox_SO = 1 # sonic orifice Cd
 C_d_ox_inj = 1 # ox injector element Cd
 R = 8.314 / (32/1000) # J/kg/K
@@ -232,35 +279,66 @@ for i, t in enumerate(t_list):
         # use inlet pressure (either tank pressure or tank pressure minus losses) and outlet pressure reg will provide (accounting for SPE) to determine N2 flow rate in SCFM
         # assumes immediate mechanical response of regulator
         [x_endpoint, y_endpoint] = computeEndpoint(P_ox_tank, x_list[0], y_list[0], x_list[1], y_list[1])
-        P_ox_regOutlet = P_ox_regOutlet_init # psia  
-        Q_N2_SCFM = computeFlowRate(x_list[2], y_list[2], x_endpoint, y_endpoint, P_ox_regOutlet); # ft^3/min, here is where you interpolate the flow curve
+        P_ox_regulatorOut = P_ox_regulatorOut_init # psia  
+        Q_N2_SCFM = computeFlowRate(x_list[2], y_list[2], x_endpoint, y_endpoint, P_ox_regulatorOut); # ft^3/min, here is where you interpolate the flow curve
     
         # manipulate N2 SCFM value to get O2 flow rate in m^3/s
         Q_ox_SCFM = Q_N2_SCFM * F_g # ft^3/min
-        Z = cp.PropsSI('Z', 'P', P_ox_regOutlet * psi_to_Pa, 'T', T_ox_tank_0, 'oxygen')
-        Q_ox = Q_ox_SCFM * Z * 14.7/P_ox_regOutlet * ft3_to_m3 * s_to_min # m^3/s
+        Z = cp.PropsSI('Z', 'P', P_ox_regulatorOut * psi_to_Pa, 'T', T_ox_tank_0, 'oxygen')
+        Q_ox = Q_ox_SCFM * Z * 14.7/P_ox_regulatorOut * ft3_to_m3 * s_to_min # m^3/s
         
         # multiply by density to get mdot in kg/s
-        rho_outlet = cp.PropsSI('D', 'T', T_ox_tank_0, 'P', P_ox_regOutlet * psi_to_Pa, 'oxygen') # kg/m^3
-        mdot_ox = Q_ox * rho_outlet # kg/s, compute the mass flow rate through the line using quantities that are present immediately dowstream of the regulator
+        rho_ox_regulatorOut = cp.PropsSI('D', 'T', T_ox_tank_0, 'P', P_ox_regulatorOut * psi_to_Pa, 'oxygen') # kg/m^3
+        mdot_ox = Q_ox * rho_ox_regulatorOut # kg/s, compute the mass flow rate through the line using quantities that are present immediately dowstream of the regulator
+        
+        # determine velocity, Mach number, and thermodynamic state at regulator outlet and solenoid inlet
+        V_ox_regulatorOut = Q_ox/A_tube # m/s
+        T_ox_regulatorOut = T_ox_tank_0 # K
+        M_ox_regulatorOut = V_ox_regulatorOut/np.sqrt(gamma*R*T_ox_regulatorOut)    
+        M_ox_solenoidIn = findM_2_constantf(gamma, f, tubeID, M_ox_regulatorOut, L2) # assume path is straight line
+        T_ox_solenoidIn = computeT_2(gamma, M_ox_regulatorOut, M_ox_solenoidIn, T_ox_regulatorOut) # K
+        V_ox_solenoidIn = M_ox_solenoidIn*np.sqrt(gamma*R*T_ox_solenoidIn) # m/s
+        P_ox_solenoidIn = computeP_2(gamma, M_ox_regulatorOut, M_ox_solenoidIn, P_ox_regulatorOut) # psi
+        rho_ox_solenoidIn = computeDensity_2_IdealGas(gamma, M_ox_regulatorOut, M_ox_solenoidIn, rho_ox_regulatorOut) # kg/m^3
         
         # (assume flow through solenoid is unchoked), solve for downstream pressure (using given Cv for solenoid valve)
         # assuming regulator outlet pressure is solenoid inlet pressure
-        bounds = [P_c, P_ox_regOutlet]
-        res = minimize_scalar(findP2_subcriticalFlow, bounds=bounds, args=(P_ox_regOutlet, C_v_solenoid, Q_ox_SCFM, S_g_ox))
-        P_solenoidOut = res.x # psi
+        bounds = [P_c, P_ox_solenoidIn]
+        res = minimize_scalar(findP2_subcriticalFlow, bounds=bounds, args=(P_ox_solenoidIn, C_v_solenoid, Q_ox_SCFM, S_g_ox))
+        P_ox_solenoidOut = res.x # psi
+        
+        # determine velocity, Mach number, and thermodynamic state at solenoid outlet and sonic orifice inlet
+        T_ox_solenoidOut = T_ox_solenoidIn*(P_ox_solenoidOut/P_ox_solenoidIn)**((gamma-1)/gamma) # K, assuming isentropic process between solenoid inlet and outlet
+        rho_ox_solenoidOut = rho_ox_solenoidIn*(P_ox_solenoidOut/P_ox_solenoidIn)**(1/gamma) # kg/m^3
+        Q_ox = mdot_ox/rho_ox_solenoidOut # m^3/s
+        V_ox_solenoidOut = Q_ox/A_tube # m/s
+        M_ox_solenoidOut = V_ox_solenoidOut/np.sqrt(gamma*R*T_ox_solenoidOut)       
+        M_ox_sonicOrificeIn = findM_2_constantf(gamma, f, tubeID, M_ox_solenoidOut, L3) # assume path is straight line
+        T_ox_sonicOrificeIn = computeT_2(gamma, M_ox_solenoidOut, M_ox_sonicOrificeIn, T_ox_solenoidOut) # K
+        V_ox_sonicOrificeIn = M_ox_sonicOrificeIn*np.sqrt(gamma*R*T_ox_sonicOrificeIn) # m/s
+        P_ox_sonicOrificeIn = computeP_2(gamma, M_ox_solenoidOut, M_ox_sonicOrificeIn, P_ox_solenoidOut) # psi        
         
         # determine size of ox injector orifice
         P_ox_injectorIn = (1 + dP_Pc) * P_c # psi
         dP_inj = (P_ox_injectorIn - P_c) * psi_to_Pa # Pa
-        rho_ox_injectorIn = cp.PropsSI('D', 'T', T_ox_tank_0, 'P', P_ox_injectorIn * psi_to_Pa, 'oxygen') # kg/m^3
-        c_p = cp.PropsSI('Cpmass', 'T', T_ox_tank_0, 'P', P_ox_injectorIn * psi_to_Pa, 'oxygen') # J/kg/K
-        A_ox_2 = mdot_ox/(C_d_ox_inj*rho_ox_injectorIn*np.sqrt(2*c_p*T_ox_tank_0*((P_c/P_ox_injectorIn)**(2/gamma) - (P_c/P_ox_injectorIn)**((gamma+1)/gamma)))) # m^2, injector outlet area
+        T_ox_injectorIn = T_ox_tank_0
+        rho_ox_injectorIn = cp.PropsSI('D', 'T', T_ox_injectorIn, 'P', P_ox_injectorIn * psi_to_Pa, 'oxygen') # kg/m^3
+        c_p = cp.PropsSI('Cpmass', 'T', T_ox_injectorIn, 'P', P_ox_injectorIn * psi_to_Pa, 'oxygen') # J/kg/K
+        A_ox_2 = mdot_ox/(C_d_ox_inj*rho_ox_injectorIn*np.sqrt(2*c_p*T_ox_injectorIn*((P_c/P_ox_injectorIn)**(2/gamma) - (P_c/P_ox_injectorIn)**((gamma+1)/gamma)))) # m^2, injector outlet area
+        
+        # determine velocity, Mach number, and thermodynamic state at sonic orifice outlet and injector inlet        
+        V_ox_injectorIn = mdot_ox/(rho_ox_injectorIn*A_tube) # m/s  # velocity at injector inlet
+        # print(V_ox_injectorIn, V_ox_injectorIn**2/c_p) # if 1/8" lines used (0.105" ID), temperature difference between static and stagnation will be less than 1 deg
+        M_ox_injectorIn = V_ox_injectorIn/np.sqrt(gamma*R*T_ox_injectorIn) # approximating injector inlet temp as tank temp (unsure how to get exact answer), approximation gets better as velocity decreases since difference between static and stagnation temp decreases
+        M_ox_sonicOrificeOut = findM_1_constantf(gamma, f, tubeID, M_ox_injectorIn, L4)
+        P_ox_sonicOrificeOut = computeP_1(gamma, M_ox_sonicOrificeOut, M_ox_injectorIn, P_ox_injectorIn) # psi
+        T_ox_sonicOrificeOut = computeT_1(gamma, M_ox_sonicOrificeOut, M_ox_injectorIn, T_ox_tank_0) # psi
+        V_ox_sonicOrificeOut = M_ox_sonicOrificeOut*np.sqrt(gamma*R*T_ox_sonicOrificeOut) # m/s
         
         # compute required size of sonic orifice
         # making sure flow is choked through sonic orifice
-        P_up_orifice = P_solenoidOut # psi, pressure upstream of the sonic orifice
-        P_down_orifice = P_ox_injectorIn # psi
+        P_up_orifice = P_ox_sonicOrificeIn # psi, pressure upstream of the sonic orifice
+        P_down_orifice = P_ox_sonicOrificeOut # psi
         if P_up_orifice/P_down_orifice >= chokedPressureRatio:
             # compute required sonic orifice area
             A_t = mdot_ox/(C_d_ox_SO*(P_up_orifice*psi_to_Pa)*np.sqrt(gamma/(R*T_ox_tank_0))*(2/(gamma+1))**((gamma+1)/(2*(gamma-1)))) # m^2
@@ -284,9 +362,10 @@ for i, t in enumerate(t_list):
       dP_inlet = abs(P_ox_tank - P_ox_tank_list[i-1]) * psi_to_Pa # Pa, assumes tank pressure is equivalent to regulator inlet
       P_outlet = P_outlet_old + dP_inlet * (SPE / 100) # Pa
       
+      # use flow curve to determine N2 SCFM flow rate using reg inlet and outlet pressures
       [x_endpoint, y_endpoint] = computeEndpoint(P_ox_tank, x_list[0], y_list[0], x_list[1], y_list[1])
-      P_ox_regOutlet = P_outlet * Pa_to_psi # psi  
-      Q_N2_SCFM = computeFlowRate(x_list[2], y_list[2], x_endpoint, y_endpoint, P_ox_regOutlet); # ft^3/min, here is where you interpolate the flow curve
+      P_ox_regulatorOut = P_outlet * Pa_to_psi # psi  
+      Q_N2_SCFM = computeFlowRate(x_list[2], y_list[2], x_endpoint, y_endpoint, P_ox_regulatorOut); # ft^3/min, here is where you interpolate the flow curve
       
       # manipulate N2 SCFM value to get O2 flow rate in m^3/s
       Q_ox_SCFM = Q_N2_SCFM * F_g # ft^3/min
@@ -294,31 +373,60 @@ for i, t in enumerate(t_list):
       Q_ox = Q_ox_SCFM * Z * 14.7/(P_outlet*Pa_to_psi) * ft3_to_m3 * s_to_min # m^3/s
       
       # multiply by density to get mdot in kg/s
-      rho_outlet = cp.PropsSI('D', 'T', T_ox_tank_0, 'P', P_outlet, 'oxygen') # kg/m^3
-      mdot_ox = Q_ox * rho_outlet # kg/s, compute the mass flow rate through the line using quantities that are present immediately dowstream of the regulator
+      rho_ox_regulatorOut = cp.PropsSI('D', 'T', T_ox_tank_0, 'P', P_ox_regulatorOut * psi_to_Pa, 'oxygen') # kg/m^3
+      mdot_ox = Q_ox * rho_ox_regulatorOut # kg/s, compute the mass flow rate through the line using quantities that are present immediately dowstream of the regulator
+      
+      # determine velocity, Mach number, and thermodynamic state at regulator outlet and solenoid inlet
+      V_ox_regulatorOut = Q_ox/A_tube # m/s
+      T_ox_regulatorOut = T_ox_tank_0 # K
+      M_ox_regulatorOut = V_ox_regulatorOut/np.sqrt(gamma*R*T_ox_regulatorOut)    
+      M_ox_solenoidIn = findM_2_constantf(gamma, f, tubeID, M_ox_regulatorOut, L2) # assume path is straight line
+      T_ox_solenoidIn = computeT_2(gamma, M_ox_regulatorOut, M_ox_solenoidIn, T_ox_regulatorOut) # K
+      V_ox_solenoidIn = M_ox_solenoidIn*np.sqrt(gamma*R*T_ox_solenoidIn) # m/s
+      P_ox_solenoidIn = computeP_2(gamma, M_ox_regulatorOut, M_ox_solenoidIn, P_ox_regulatorOut) # psi
+      rho_ox_solenoidIn = computeDensity_2_IdealGas(gamma, M_ox_regulatorOut, M_ox_solenoidIn, rho_ox_regulatorOut) # kg/m^3
       
       # get solenoid outlet pressure
-      bounds = [P_c, P_ox_regOutlet]
-      # res = minimize_scalar(findP2_massBalance, bounds=bounds, args=(C_d_ox_SO, A_t, gamma, R, T_ox_tank_0, rho_ox, P_ox_regOutlet, S_g_ox, C_v_solenoid, P_ox_tank, 'oxygen'))
-      res = minimize_scalar(findP2_subcriticalFlow, bounds=bounds, args=(P_ox_regOutlet, C_v_solenoid, Q_ox_SCFM, S_g_ox))
-      P_solenoidOut = res.x # psi
-          
+      bounds = [P_c, P_ox_solenoidIn]
+      # res = minimize_scalar(findP2_massBalance, bounds=bounds, args=(C_d_ox_SO, A_t, gamma, R, T_ox_tank_0, rho_ox, P_ox_regulatorOut, S_g_ox, C_v_solenoid, P_ox_tank, 'oxygen'))
+      res = minimize_scalar(findP2_subcriticalFlow, bounds=bounds, args=(P_ox_solenoidIn, C_v_solenoid, Q_ox_SCFM, S_g_ox))
+      P_ox_solenoidOut = res.x # psi
+      
+      # determine velocity, Mach number, and thermodynamic state at solenoid outlet and sonic orifice inlet
+      T_ox_solenoidOut = T_ox_solenoidIn*(P_ox_solenoidOut/P_ox_solenoidIn)**((gamma-1)/gamma) # K, assuming isentropic process between solenoid inlet and outlet
+      rho_ox_solenoidOut = rho_ox_solenoidIn*(P_ox_solenoidOut/P_ox_solenoidIn)**(1/gamma) # kg/m^3
+      Q_ox = mdot_ox/rho_ox_solenoidOut # m^3/s
+      V_ox_solenoidOut = Q_ox/A_tube # m/s
+      M_ox_solenoidOut = V_ox_solenoidOut/np.sqrt(gamma*R*T_ox_solenoidOut)       
+      M_ox_sonicOrificeIn = findM_2_constantf(gamma, f, tubeID, M_ox_solenoidOut, L3) # assume path is straight line
+      T_ox_sonicOrificeIn = computeT_2(gamma, M_ox_solenoidOut, M_ox_sonicOrificeIn, T_ox_solenoidOut) # K
+      V_ox_sonicOrificeIn = M_ox_sonicOrificeIn*np.sqrt(gamma*R*T_ox_sonicOrificeIn) # m/s
+      P_ox_sonicOrificeIn = computeP_2(gamma, M_ox_solenoidOut, M_ox_sonicOrificeIn, P_ox_solenoidOut) # psi        
+      
+      # find injector inlet pressure
+      T_ox_injectorIn = T_ox_tank_0
+      res = minimize_scalar(findInjectorInletPressure, bounds=[P_c, P_up_orifice], args=(mdot_ox, C_d_ox_inj, A_ox_2, T_ox_injectorIn, gamma, P_c, 'oxygen'))
+      P_ox_injectorIn = res.x # psi
+      
+      # determine velocity, Mach number, and thermodynamic state at sonic orifice outlet and injector inlet              
+      rho_ox_injectorIn = cp.PropsSI('D', 'T', T_ox_injectorIn, 'P', P_ox_injectorIn * psi_to_Pa, 'oxygen') # kg/m^3
+      V_ox_injectorIn = mdot_ox/(rho_ox_injectorIn*A_tube) # m/s  # velocity at injector inlet
+      # print(V_ox_injectorIn, V_ox_injectorIn**2/c_p) # if 1/8" lines used (0.105" ID), temperature difference between static and stagnation will be less than 1 deg
+      M_ox_injectorIn = V_ox_injectorIn/np.sqrt(gamma*R*T_ox_injectorIn) # approximating injector inlet temp as tank temp (unsure how to get exact answer), approximation gets better as velocity decreases since difference between static and stagnation temp decreases
+      M_ox_sonicOrificeOut = findM_1_constantf(gamma, f, tubeID, M_ox_injectorIn, L4)
+      P_ox_sonicOrificeOut = computeP_1(gamma, M_ox_sonicOrificeOut, M_ox_injectorIn, P_ox_injectorIn) # psi
+      T_ox_sonicOrificeOut = computeT_1(gamma, M_ox_sonicOrificeOut, M_ox_injectorIn, T_ox_tank_0) # psi
+      V_ox_sonicOrificeOut = M_ox_sonicOrificeOut*np.sqrt(gamma*R*T_ox_sonicOrificeOut) # m/s
+ 
       # Throwing an error if flow through sonic orifice isn't choked
-      P_up_orifice = P_solenoidOut # psi, pressure upstream of the sonic orifice
-      # rho_inj = cp.PropsSI('D', 'T', T_ox_tank_0, 'P', P_c * psi_to_Pa, 'oxygen') # kg/m^3, assuming dP_inj is small enough that changes in density are small
-      # P_down_orifice = (mdot_ox/(C_d_ox_inj*A_ox_inj))**2/(2*rho_inj) * Pa_to_psi + P_c # psi, pressure downstream of the sonic orifice 
-      
-      res = minimize_scalar(findSonicOrificeOutletPressure, bounds=[P_c, P_up_orifice], args=(mdot_ox, C_d_ox_inj, A_ox_2, T_ox_tank_0, gamma, P_c, 'oxygen'))
-      P_down_orifice = res.x # psi
-      
-      P_ox_injectorIn = P_down_orifice # approximating as same pressure entering ox side of injector
+      P_up_orifice = P_ox_sonicOrificeIn # psi, pressure upstream of the sonic orifice
+      P_down_orifice = P_ox_sonicOrificeOut
       if P_up_orifice/P_down_orifice < chokedPressureRatio:
           print(f'!!!!!\n\nError Ox 2: Flow is not choked through ox sonic orifice. The sonic orifice area computed at initial timestep will not choke flow at t = {t} seconds, i = {i}.\n\n!!!!!')
           error = True 
           
     # Throwing an error if flow through solenoid is choked
-    P_solenoidIn = P_ox_regOutlet
-    if P_solenoidIn/P_solenoidOut >= chokedPressureRatio:
+    if P_ox_solenoidIn/P_ox_solenoidOut >= chokedPressureRatio:
         print(f'!!!!!\n\nError Ox 3: Flow is choked through ox solenoid. It is not supposed to be. \ni = {i}, t = {t} seconds.\n\n!!!!!')
         error = True    
 
@@ -327,124 +435,243 @@ for i, t in enumerate(t_list):
     rho_ox_tank_list[i] = rho_ox
     Z_ox_list[i] = cp.PropsSI('Z', 'P', P_ox_tank, 'T', T_ox_tank_0, 'oxygen')
     P_ox_tank_list[i] = P_ox_tank # psi
-    P_ox_regulatorOut_list[i] = P_ox_regOutlet # psi
-    P_ox_solenoidOut_list[i] = P_solenoidOut
+    P_ox_regulatorOut_list[i] = P_ox_regulatorOut # psi
+    P_ox_solenoidIn_list[i] = P_ox_solenoidIn    
+    P_ox_solenoidOut_list[i] = P_ox_solenoidOut
+    P_ox_sonicOrificeIn_list[i] = P_ox_sonicOrificeIn
+    P_ox_sonicOrificeOut_list[i] = P_ox_sonicOrificeOut
     P_ox_injectorIn_list[i] = P_ox_injectorIn
+    V_ox_regulatorOut_list[i] = V_ox_regulatorOut
+    V_ox_solenoidIn_list[i] = V_ox_solenoidIn    
+    V_ox_solenoidOut_list[i] = V_ox_solenoidOut
+    V_ox_sonicOrificeIn_list[i] = V_ox_sonicOrificeIn
+    V_ox_sonicOrificeOut_list[i] = V_ox_sonicOrificeOut
+    V_ox_injectorIn_list[i] = V_ox_injectorIn
+    M_ox_regulatorOut_list[i] = M_ox_regulatorOut
+    M_ox_solenoidIn_list[i] = M_ox_solenoidIn    
+    M_ox_solenoidOut_list[i] = M_ox_solenoidOut
+    M_ox_sonicOrificeIn_list[i] = M_ox_sonicOrificeIn
+    M_ox_sonicOrificeOut_list[i] = M_ox_sonicOrificeOut
+    M_ox_injectorIn_list[i] = M_ox_injectorIn
+    T_ox_regulatorOut_list[i] = T_ox_regulatorOut
+    T_ox_solenoidIn_list[i] = T_ox_solenoidIn    
+    T_ox_solenoidOut_list[i] = T_ox_solenoidOut
+    T_ox_sonicOrificeIn_list[i] = T_ox_sonicOrificeIn
+    T_ox_sonicOrificeOut_list[i] = T_ox_sonicOrificeOut
+    T_ox_injectorIn_list[i] = T_ox_injectorIn
     Q_ox_list[i] = Q_ox
     Q_ox_SCFM_list[i] = Q_ox_SCFM
-    S_g_ox_list[i] = S_g_ox
     
 d_ox_SO = np.sqrt(4*A_t/np.pi)*m_to_in
 C_v_ox_solenoid = C_v_solenoid
 
-# # fuel side
-# mdot_fu_0 = 1/(MR+1)*mdot # kg/s
-# S_g_fu = 0.554
-# gamma = 1.32
-# chokedPressureRatio = ((gamma+1)/2)**(gamma/(gamma-1)) # upstream over downstream
-# regSetPressureFu = 900 # psi
-# P_solenoidOut_init = 800 # psi
-# C_d_fu_SO = 1 # sonic orifice Cd
-# C_d_fu_inj = 1 # fu injector element Cd
-# R = 8.314 / (16/1000) # J/kg/K
-
-# for i, t in enumerate(t_list):
-
-#   # if flow through reg is choked
-#   if P_fu_tank/(regSetPressureFu*psi_to_Pa) >= chokedPressureRatio:
-
-#     # tank valve opens
-#     # assume it opens fully, immediately
-#     if t == 0:
-
-#       P_fu_tank = P_fu_tank_0 # Pa
-#       rho_fu = cp.PropsSI('D', 'T', T_fu_tank_0, 'P', P_fu_tank, 'methane') # kg/m^3
-#       m_fu = rho_fu*V_fu_tank # kg
-
-#       mdot_fu = mdot_fu_0 # kg/s
-#       Q_fu = mdot_fu/rho_fu # m^3/s
-
-#       # SCFM value normally computed at standard pressure, temperature, and humidity
-#       # assuming only pressure is significantly different
-#       Q_fu_SCFM = Q_fu * (P_fu_tank*Pa_to_psi)/14.7 * m3_to_ft3 * min_to_s # ft^3/min
-
-#       C_v_reg = Q_fu_SCFM*2*np.sqrt(S_g_fu)/(P_fu_tank*Pa_to_psi) # SCFM/psi (for gases)
-
-#       # compute required solenoid valve Cv
-#       P_solenoidOut = P_solenoidOut_init # psi
-#       dP_init = regSetPressureFu - P_solenoidOut # psi
-#       C_v_solenoid = Q_fu_SCFM*np.sqrt(S_g_fu/(dP_init*P_solenoidOut))
-
-#       # determine size of fu injector orifice
-#       P_fu_injectorIn = (1 + dP_Pc) * P_c # psi
-#       dP_inj = (P_fu_injectorIn - P_c) * psi_to_Pa # Pa
-#       A_fu_inj = mdot_fu/(C_d_fu_inj*np.sqrt(2*rho_fu*dP_inj)) # m^2
-
-#       # making sure flow is choked through sonic orifice
-#       P_up_orifice = P_solenoidOut # psi, pressure upstream of the sonic orifice
-#       P_down_orifice = P_fu_injectorIn # psi
-#       if P_up_orifice/P_down_orifice >= chokedPressureRatio:
-#           # compute required sonic orifice area
-#           A_t = mdot_fu/(C_d_fu_SO*(P_up_orifice*psi_to_Pa)*np.sqrt(gamma/(R*T_fu_tank_0))*(2/(gamma+1))**((gamma+1)/(2*(gamma-1)))) # m^2
-#           # leads to ___????
-#       else:
-#           print(f'!!!!!\n\nFlow is not choked through fu sonic orifice at i = {i} and t = {t} seconds. Cannot proceed with analysis because feed system requires choked flow through sonic orifice to define a throat area.\n\n!!!!!')
-#           error = True
-      
-#     if t >= dt:
-
-#       # new tank mass based on previous mass flow rate
-#       m_fu_prev = m_fu_list[i-1] # kg
-#       mdot_fu_prev = mdot_fu_list[i-1] # kg/s
-#       m_fu = m_fu_prev - mdot_fu_prev*dt # kg
-
-#       # compute new tank pressure
-#       rho_fu = m_fu/V_fu_tank # kg/m^3
-#       P_fu_tank = cp.PropsSI('P', 'Dmass', rho_fu, 'T', T_fu_tank_0, 'methane') # Pa
-
-#       # compute mass flow rate
-#       mdot_fu = C_d_fu_SO*P_fu_tank*A_t*np.sqrt(gamma/(R*T_fu_tank_0))*(2/(gamma+1))**((gamma+1)/(2*(gamma-1))) # kg/s
-
-#       Q_fu = mdot_fu/rho_fu # m^3/s
-
-#       # SCFM value normally computed at standard pressure, temperature, and humidity
-#       # assuming only pressure is significantly different
-#       Q_fu_SCFM = Q_fu * (P_fu_tank*Pa_to_psi)/14.7 * m3_to_ft3 * min_to_s # ft^3/min
-
-#       # compute reg Cv
-#       C_v_reg = Q_fu_SCFM*2*np.sqrt(S_g_fu)/(P_fu_tank*Pa_to_psi)
-
-#       # compute pressure downstream of solenoid valve (assume not choked)
-#       bounds = [P_c, regSetPressureFu]
-#       res = minimize_scalar(findP2, bounds=bounds, args=(regSetPressureFu, C_v_solenoid, Q_fu_SCFM, S_g_fu))
-#       P_solenoidOut = res.x
-      
-#       # Throwing an error if flow through sonic orifice isn't choked
-#       P_up_orifice = P_solenoidOut # psi, pressure upstream of the sonic orifice
-#       P_down_orifice = (mdot_fu/(C_d_fu_inj*A_fu_inj))**2/(2*rho_fu) * Pa_to_psi + P_c # psi, pressure downstream of the sonic orifice 
-#       P_fu_injectorIn = P_down_orifice # approximating as same pressure entering fu side of injector
-#       if P_up_orifice/P_down_orifice < chokedPressureRatio:
-#           print(f'!!!!!\n\nFlow is not choked through fu sonic orifice. The sonic orifice area computed at initial timestep will not choke flow at t = {t} seconds, i = {i}.\n\n!!!!!')
-#           error = True 
+# fuel side
+S_g_fu = 0.554
+gamma = 1.32
+chokedPressureRatio = ((gamma+1)/2)**(gamma/(gamma-1)) # upstream over downstream
+P_fu_regulatorOut_init = 450 + 14.7 # psia, outlet pressure, will change due to supply pressure effect
+C_d_fu_SO = 1 # sonic orifice Cd
+C_d_fu_inj = 1 # fu injector element Cd
+R = 8.314 / (16/1000) # J/kg/K
+SPE = 1.5 # Supply Pressure Effect (%). Found on page 6 of MS-02-230. For regulator with Cv = 0.06 and pressure control range between 0 and above 250 psig. In my case it's between 0 and 500 psig.
+F_g = 1.32 # specific gravity correction factor, page 4 of MS-06-114
+C_v_solenoid = 1.7
+for i, t in enumerate(t_list):
     
-#     # Throwing an error if flow through solenoid is choked
-#     P_solenoidIn = regSetPressureFu
-#     if P_solenoidIn/P_solenoidOut >= chokedPressureRatio:
-#         print(f'!!!!!\n\nFlow is choked through fu solenoid. It is not supposed to be. \ni = {i}, t = {t} seconds.\n\n!!!!!')
-#         error = True        
-    
-#     m_fu_list[i] = m_fu
-#     mdot_fu_list[i] = mdot_fu
-#     P_fu_tank_list[i] = P_fu_tank * Pa_to_psi
-#     rho_fu_tank_list[i] = rho_fu
-#     Cv_fu_reg_list[i] = C_v_reg
-#     Z_fu_list[i] = cp.PropsSI('Z', 'P', P_fu_tank, 'T', T_fu_tank_0, 'methane')
-#     P_fu_solenoidOut_list[i] = P_solenoidOut
-#     Q_fu_list[i] = Q_fu
-#     P_fu_injectorIn_list[i] = P_fu_injectorIn
+    if t == 0:
 
-# d_fu_SO = np.sqrt(4*A_t/np.pi)*m_to_in
-# C_v_fu_solenoid = C_v_solenoid
+        P_fu_tank = P_fu_tank_0 # psi
+        rho_fu = cp.PropsSI('D', 'T', T_fu_tank_0, 'P', P_fu_tank * psi_to_Pa, 'methane') # kg/m^3
+        m_fu = rho_fu*V_fu_tank # kg
+    
+        # use inlet pressure (either tank pressure or tank pressure minus losses) and outlet pressure reg will provide (accounting for SPE) to determine N2 flow rate in SCFM
+        # assumes immediate mechanical response of regulator
+        [x_endpoint, y_endpoint] = computeEndpoint(P_fu_tank, x_list[0], y_list[0], x_list[1], y_list[1])
+        P_fu_regulatorOut = P_fu_regulatorOut_init # psia  
+        Q_N2_SCFM = computeFlowRate(x_list[2], y_list[2], x_endpoint, y_endpoint, P_fu_regulatorOut); # ft^3/min, here is where you interpolate the flow curve
+    
+        # manipulate N2 SCFM value to get CH4 flow rate in m^3/s
+        Q_fu_SCFM = Q_N2_SCFM * F_g # ft^3/min
+        Z = cp.PropsSI('Z', 'P', P_fu_regulatorOut * psi_to_Pa, 'T', T_fu_tank_0, 'methane')
+        Q_fu = Q_fu_SCFM * Z * 14.7/P_fu_regulatorOut * ft3_to_m3 * s_to_min # m^3/s
+        
+        # multiply by density to get mdot in kg/s
+        rho_fu_regulatorOut = cp.PropsSI('D', 'T', T_fu_tank_0, 'P', P_fu_regulatorOut * psi_to_Pa, 'methane') # kg/m^3
+        mdot_fu = Q_fu * rho_fu_regulatorOut # kg/s, compute the mass flow rate through the line using quantities that are present immediately dowstream of the regulator
+        
+        # determine velocity, Mach number, and thermodynamic state at regulator outlet and solenoid inlet
+        V_fu_regulatorOut = Q_fu/A_tube # m/s
+        T_fu_regulatorOut = T_fu_tank_0 # K
+        M_fu_regulatorOut = V_fu_regulatorOut/np.sqrt(gamma*R*T_fu_regulatorOut)    
+        M_fu_solenoidIn = findM_2_constantf(gamma, f, tubeID, M_fu_regulatorOut, L2) # assume path is straight line
+        T_fu_solenoidIn = computeT_2(gamma, M_fu_regulatorOut, M_fu_solenoidIn, T_fu_regulatorOut) # K
+        V_fu_solenoidIn = M_fu_solenoidIn*np.sqrt(gamma*R*T_fu_solenoidIn) # m/s
+        P_fu_solenoidIn = computeP_2(gamma, M_fu_regulatorOut, M_fu_solenoidIn, P_fu_regulatorOut) # psi
+        rho_fu_solenoidIn = computeDensity_2_IdealGas(gamma, M_fu_regulatorOut, M_fu_solenoidIn, rho_fu_regulatorOut) # kg/m^3
+        
+        # (assume flow through solenoid is unchoked), solve for downstream pressure (using given Cv for solenoid valve)
+        # assuming regulator outlet pressure is solenoid inlet pressure
+        bounds = [P_c, P_fu_solenoidIn]
+        res = minimize_scalar(findP2_subcriticalFlow, bounds=bounds, args=(P_fu_solenoidIn, C_v_solenoid, Q_fu_SCFM, S_g_fu))
+        P_fu_solenoidOut = res.x # psi
+        
+        # determine velocity, Mach number, and thermodynamic state at solenoid outlet and sonic orifice inlet
+        T_fu_solenoidOut = T_fu_solenoidIn*(P_fu_solenoidOut/P_fu_solenoidIn)**((gamma-1)/gamma) # K, assuming isentropic process between solenoid inlet and outlet
+        rho_fu_solenoidOut = rho_fu_solenoidIn*(P_fu_solenoidOut/P_fu_solenoidIn)**(1/gamma) # kg/m^3
+        Q_fu = mdot_fu/rho_fu_solenoidOut # m^3/s
+        V_fu_solenoidOut = Q_fu/A_tube # m/s
+        M_fu_solenoidOut = V_fu_solenoidOut/np.sqrt(gamma*R*T_fu_solenoidOut)       
+        M_fu_sonicOrificeIn = findM_2_constantf(gamma, f, tubeID, M_fu_solenoidOut, L3) # assume path is straight line
+        T_fu_sonicOrificeIn = computeT_2(gamma, M_fu_solenoidOut, M_fu_sonicOrificeIn, T_fu_solenoidOut) # K
+        V_fu_sonicOrificeIn = M_fu_sonicOrificeIn*np.sqrt(gamma*R*T_fu_sonicOrificeIn) # m/s
+        P_fu_sonicOrificeIn = computeP_2(gamma, M_fu_solenoidOut, M_fu_sonicOrificeIn, P_fu_solenoidOut) # psi        
+        
+        # determine size of fu injector orifice
+        P_fu_injectorIn = (1 + dP_Pc) * P_c # psi
+        dP_inj = (P_fu_injectorIn - P_c) * psi_to_Pa # Pa
+        T_fu_injectorIn = T_fu_tank_0
+        rho_fu_injectorIn = cp.PropsSI('D', 'T', T_fu_injectorIn, 'P', P_fu_injectorIn * psi_to_Pa, 'methane') # kg/m^3
+        c_p = cp.PropsSI('Cpmass', 'T', T_fu_injectorIn, 'P', P_fu_injectorIn * psi_to_Pa, 'methane') # J/kg/K
+        A_fu_2 = mdot_fu/(C_d_fu_inj*rho_fu_injectorIn*np.sqrt(2*c_p*T_fu_injectorIn*((P_c/P_fu_injectorIn)**(2/gamma) - (P_c/P_fu_injectorIn)**((gamma+1)/gamma)))) # m^2, injector outlet area
+        
+        # determine velocity, Mach number, and thermodynamic state at sonic orifice outlet and injector inlet        
+        V_fu_injectorIn = mdot_fu/(rho_fu_injectorIn*A_tube) # m/s  # velocity at injector inlet
+        # print(V_fu_injectorIn, V_fu_injectorIn**2/c_p) # if 1/8" lines used (0.105" ID), temperature difference between static and stagnation will be less than 1 deg
+        M_fu_injectorIn = V_fu_injectorIn/np.sqrt(gamma*R*T_fu_injectorIn) # apprfuimating injector inlet temp as tank temp (unsure how to get exact answer), apprfuimation gets better as velocity decreases since difference between static and stagnation temp decreases
+        M_fu_sonicOrificeOut = findM_1_constantf(gamma, f, tubeID, M_fu_injectorIn, L4)
+        P_fu_sonicOrificeOut = computeP_1(gamma, M_fu_sonicOrificeOut, M_fu_injectorIn, P_fu_injectorIn) # psi
+        T_fu_sonicOrificeOut = computeT_1(gamma, M_fu_sonicOrificeOut, M_fu_injectorIn, T_fu_tank_0) # psi
+        V_fu_sonicOrificeOut = M_fu_sonicOrificeOut*np.sqrt(gamma*R*T_fu_sonicOrificeOut) # m/s
+        
+        # compute required size of sonic orifice
+        # making sure flow is choked through sonic orifice
+        P_up_orifice = P_fu_sonicOrificeIn # psi, pressure upstream of the sonic orifice
+        P_down_orifice = P_fu_sonicOrificeOut # psi
+        if P_up_orifice/P_down_orifice >= chokedPressureRatio:
+            # compute required sonic orifice area
+            A_t = mdot_fu/(C_d_fu_SO*(P_up_orifice*psi_to_Pa)*np.sqrt(gamma/(R*T_fu_tank_0))*(2/(gamma+1))**((gamma+1)/(2*(gamma-1)))) # m^2
+            # leads to ___????
+        else:
+            print(f'!!!!!\n\nError fu 1: Flow is not choked through fu sonic orifice at i = {i} and t = {t} seconds. Cannot proceed with analysis because feed system requires choked flow through sonic orifice to define a throat area.\n\n!!!!!')
+            error = True
+    
+    if t >= dt:
+        
+      # new tank mass based on previous mass flow rate
+      m_fu_prev = m_fu_list[i-1] # kg
+      mdot_fu_prev = mdot_fu_list[i-1] # kg/s
+      m_fu = m_fu_prev - mdot_fu_prev*dt # kg
+
+      # compute new tank pressure
+      rho_fu = m_fu/V_fu_tank # kg/m^3
+      P_fu_tank = cp.PropsSI('P', 'Dmass', rho_fu, 'T', T_fu_tank_0, 'methane') * Pa_to_psi # psi
+        
+      P_outlet_old = P_fu_regulatorOut_list[i-1] * psi_to_Pa # Pa
+      dP_inlet = abs(P_fu_tank - P_fu_tank_list[i-1]) * psi_to_Pa # Pa, assumes tank pressure is equivalent to regulator inlet
+      P_outlet = P_outlet_old + dP_inlet * (SPE / 100) # Pa
+      
+      # use flow curve to determine N2 SCFM flow rate using reg inlet and outlet pressures
+      [x_endpoint, y_endpoint] = computeEndpoint(P_fu_tank, x_list[0], y_list[0], x_list[1], y_list[1])
+      P_fu_regulatorOut = P_outlet * Pa_to_psi # psi  
+      Q_N2_SCFM = computeFlowRate(x_list[2], y_list[2], x_endpoint, y_endpoint, P_fu_regulatorOut); # ft^3/min, here is where you interpolate the flow curve
+      
+      # manipulate N2 SCFM value to get CH4 flow rate in m^3/s
+      Q_fu_SCFM = Q_N2_SCFM * F_g # ft^3/min
+      Z = cp.PropsSI('Z', 'P', P_outlet, 'T', T_fu_tank_0, 'methane')
+      Q_fu = Q_fu_SCFM * Z * 14.7/(P_outlet*Pa_to_psi) * ft3_to_m3 * s_to_min # m^3/s
+      
+      # multiply by density to get mdot in kg/s
+      rho_fu_regulatorOut = cp.PropsSI('D', 'T', T_fu_tank_0, 'P', P_fu_regulatorOut * psi_to_Pa, 'methane') # kg/m^3
+      mdot_fu = Q_fu * rho_fu_regulatorOut # kg/s, compute the mass flow rate through the line using quantities that are present immediately dowstream of the regulator
+      
+      # determine velocity, Mach number, and thermodynamic state at regulator outlet and solenoid inlet
+      V_fu_regulatorOut = Q_fu/A_tube # m/s
+      T_fu_regulatorOut = T_fu_tank_0 # K
+      M_fu_regulatorOut = V_fu_regulatorOut/np.sqrt(gamma*R*T_fu_regulatorOut)    
+      M_fu_solenoidIn = findM_2_constantf(gamma, f, tubeID, M_fu_regulatorOut, L2) # assume path is straight line
+      T_fu_solenoidIn = computeT_2(gamma, M_fu_regulatorOut, M_fu_solenoidIn, T_fu_regulatorOut) # K
+      V_fu_solenoidIn = M_fu_solenoidIn*np.sqrt(gamma*R*T_fu_solenoidIn) # m/s
+      P_fu_solenoidIn = computeP_2(gamma, M_fu_regulatorOut, M_fu_solenoidIn, P_fu_regulatorOut) # psi
+      rho_fu_solenoidIn = computeDensity_2_IdealGas(gamma, M_fu_regulatorOut, M_fu_solenoidIn, rho_fu_regulatorOut) # kg/m^3
+      
+      # get solenoid outlet pressure
+      bounds = [P_c, P_fu_solenoidIn]
+      # res = minimize_scalar(findP2_massBalance, bounds=bounds, args=(C_d_fu_SO, A_t, gamma, R, T_fu_tank_0, rho_fu, P_fu_regulatorOut, S_g_fu, C_v_solenoid, P_fu_tank, 'methane'))
+      res = minimize_scalar(findP2_subcriticalFlow, bounds=bounds, args=(P_fu_solenoidIn, C_v_solenoid, Q_fu_SCFM, S_g_fu))
+      P_fu_solenoidOut = res.x # psi
+      
+      # determine velocity, Mach number, and thermodynamic state at solenoid outlet and sonic orifice inlet
+      T_fu_solenoidOut = T_fu_solenoidIn*(P_fu_solenoidOut/P_fu_solenoidIn)**((gamma-1)/gamma) # K, assuming isentropic process between solenoid inlet and outlet
+      rho_fu_solenoidOut = rho_fu_solenoidIn*(P_fu_solenoidOut/P_fu_solenoidIn)**(1/gamma) # kg/m^3
+      Q_fu = mdot_fu/rho_fu_solenoidOut # m^3/s
+      V_fu_solenoidOut = Q_fu/A_tube # m/s
+      M_fu_solenoidOut = V_fu_solenoidOut/np.sqrt(gamma*R*T_fu_solenoidOut)       
+      M_fu_sonicOrificeIn = findM_2_constantf(gamma, f, tubeID, M_fu_solenoidOut, L3) # assume path is straight line
+      T_fu_sonicOrificeIn = computeT_2(gamma, M_fu_solenoidOut, M_fu_sonicOrificeIn, T_fu_solenoidOut) # K
+      V_fu_sonicOrificeIn = M_fu_sonicOrificeIn*np.sqrt(gamma*R*T_fu_sonicOrificeIn) # m/s
+      P_fu_sonicOrificeIn = computeP_2(gamma, M_fu_solenoidOut, M_fu_sonicOrificeIn, P_fu_solenoidOut) # psi        
+      
+      # find injector inlet pressure
+      T_fu_injectorIn = T_fu_tank_0
+      res = minimize_scalar(findInjectorInletPressure, bounds=[P_c, P_up_orifice], args=(mdot_fu, C_d_fu_inj, A_fu_2, T_fu_injectorIn, gamma, P_c, 'methane'))
+      P_fu_injectorIn = res.x # psi
+      
+      # determine velocity, Mach number, and thermodynamic state at sonic orifice outlet and injector inlet              
+      rho_fu_injectorIn = cp.PropsSI('D', 'T', T_fu_injectorIn, 'P', P_fu_injectorIn * psi_to_Pa, 'methane') # kg/m^3
+      V_fu_injectorIn = mdot_fu/(rho_fu_injectorIn*A_tube) # m/s  # velocity at injector inlet
+      # print(V_fu_injectorIn, V_fu_injectorIn**2/c_p) # if 1/8" lines used (0.105" ID), temperature difference between static and stagnation will be less than 1 deg
+      M_fu_injectorIn = V_fu_injectorIn/np.sqrt(gamma*R*T_fu_injectorIn) # apprfuimating injector inlet temp as tank temp (unsure how to get exact answer), apprfuimation gets better as velocity decreases since difference between static and stagnation temp decreases
+      M_fu_sonicOrificeOut = findM_1_constantf(gamma, f, tubeID, M_fu_injectorIn, L4)
+      P_fu_sonicOrificeOut = computeP_1(gamma, M_fu_sonicOrificeOut, M_fu_injectorIn, P_fu_injectorIn) # psi
+      T_fu_sonicOrificeOut = computeT_1(gamma, M_fu_sonicOrificeOut, M_fu_injectorIn, T_fu_tank_0) # psi
+      V_fu_sonicOrificeOut = M_fu_sonicOrificeOut*np.sqrt(gamma*R*T_fu_sonicOrificeOut) # m/s
+ 
+      # Throwing an error if flow through sonic orifice isn't choked
+      P_up_orifice = P_fu_sonicOrificeIn # psi, pressure upstream of the sonic orifice
+      P_down_orifice = P_fu_sonicOrificeOut
+      if P_up_orifice/P_down_orifice < chokedPressureRatio:
+          print(f'!!!!!\n\nError fu 2: Flow is not choked through fu sonic orifice. The sonic orifice area computed at initial timestep will not choke flow at t = {t} seconds, i = {i}.\n\n!!!!!')
+          error = True 
+          
+    # Throwing an error if flow through solenoid is choked
+    if P_fu_solenoidIn/P_fu_solenoidOut >= chokedPressureRatio:
+        print(f'!!!!!\n\nError fu 3: Flow is choked through fu solenoid. It is not supposed to be. \ni = {i}, t = {t} seconds.\n\n!!!!!')
+        error = True    
+
+    m_fu_list[i] = m_fu
+    mdot_fu_list[i] = mdot_fu
+    rho_fu_tank_list[i] = rho_fu
+    Z_fu_list[i] = cp.PropsSI('Z', 'P', P_fu_tank, 'T', T_fu_tank_0, 'methane')
+    P_fu_tank_list[i] = P_fu_tank # psi
+    P_fu_regulatorOut_list[i] = P_fu_regulatorOut # psi
+    P_fu_solenoidIn_list[i] = P_fu_solenoidIn    
+    P_fu_solenoidOut_list[i] = P_fu_solenoidOut
+    P_fu_sonicOrificeIn_list[i] = P_fu_sonicOrificeIn
+    P_fu_sonicOrificeOut_list[i] = P_fu_sonicOrificeOut
+    P_fu_injectorIn_list[i] = P_fu_injectorIn
+    V_fu_regulatorOut_list[i] = V_fu_regulatorOut
+    V_fu_solenoidIn_list[i] = V_fu_solenoidIn    
+    V_fu_solenoidOut_list[i] = V_fu_solenoidOut
+    V_fu_sonicOrificeIn_list[i] = V_fu_sonicOrificeIn
+    V_fu_sonicOrificeOut_list[i] = V_fu_sonicOrificeOut
+    V_fu_injectorIn_list[i] = V_fu_injectorIn
+    M_fu_regulatorOut_list[i] = M_fu_regulatorOut
+    M_fu_solenoidIn_list[i] = M_fu_solenoidIn    
+    M_fu_solenoidOut_list[i] = M_fu_solenoidOut
+    M_fu_sonicOrificeIn_list[i] = M_fu_sonicOrificeIn
+    M_fu_sonicOrificeOut_list[i] = M_fu_sonicOrificeOut
+    M_fu_injectorIn_list[i] = M_fu_injectorIn
+    T_fu_regulatorOut_list[i] = T_fu_regulatorOut
+    T_fu_solenoidIn_list[i] = T_fu_solenoidIn    
+    T_fu_solenoidOut_list[i] = T_fu_solenoidOut
+    T_fu_sonicOrificeIn_list[i] = T_fu_sonicOrificeIn
+    T_fu_sonicOrificeOut_list[i] = T_fu_sonicOrificeOut
+    T_fu_injectorIn_list[i] = T_fu_injectorIn
+    Q_fu_list[i] = Q_fu
+    Q_fu_SCFM_list[i] = Q_fu_SCFM
+    
+d_fu_SO = np.sqrt(4*A_t/np.pi)*m_to_in
+C_v_fu_solenoid = C_v_solenoid
 
 
 # plt.figure(1)
@@ -474,11 +701,11 @@ if not error:
     plt.xlabel('Time [s]')
     plt.legend(['Ox', 'Fuel', 'Total'])
     
-    # plt.figure()
-    # plt.plot(t_list, mdot_ox_list/mdot_fu_list)
-    # plt.title('Mixture ratio vs time')
-    # plt.ylabel('Mixture ratio')
-    # plt.xlabel('Time [s]')
+    plt.figure()
+    plt.plot(t_list, mdot_ox_list/mdot_fu_list)
+    plt.title('Mixture ratio vs time')
+    plt.ylabel('Mixture ratio')
+    plt.xlabel('Time [s]')
     
     # plt.figure()
     # P_fu_tank_list = P_fu_tank_list
@@ -497,40 +724,130 @@ if not error:
     # plt.ylabel('Pressure [psi]')
     # plt.xlabel('Time [s]')
     
-    # plotting ox line pressure vs position at different times
-    plt.figure()
-    positions = [1, 2, 3, 4]
-    step = 20
-    n = 0
-    legendString = []
-    colors = ['b', 'g', 'r', 'y', 'k', 'm']
-    while n * step <= int(t_list[-1]):
+    # # plotting ox line pressure vs position at different times
+    # plt.figure()
+    # positions = [1, 2, 3, 4]
+    # step = 20
+    # n = 0
+    # legendString = []
+    # colors = ['b', 'g', 'r', 'y', 'k', 'm']
+    # while n * step <= int(t_list[-1]):
         
-        color = colors[n]
-        plt.plot(positions, extractLinePressures(n*step, 'ox'), f'o-{color}')
-        plt.title('Ox line pressures at various times')
-        plt.ylabel('Pressure [psi]')
-        plt.xlabel('Location')
-        plt.xticks(positions)
-        legendString.append(f't = {n*step} seconds')
-        n += 1
+    #     color = colors[n]
+    #     plt.plot(positions, extractLinePressures(n*step, 'ox'), f'o-{color}')
+    #     plt.title('Ox line pressures at various times')
+    #     plt.ylabel('Pressure [psi]')
+    #     plt.xlabel('Location')
+    #     plt.xticks(positions)
+    #     legendString.append(f't = {n*step} seconds')
+    #     n += 1
     
-    plt.legend(legendString)
+    # plt.legend(legendString)
     
-    # plotting ox line pressure at different positions vs time
+    ###################################
+    ########### OX PLOTTING
+    ###################################
+    
+    # # plotting ox line pressure at different positions vs time
+    # n = 0
+    # pressureList = [P_ox_tank_list, P_ox_regulatorOut_list, P_ox_solenoidIn_list, P_ox_solenoidOut_list, P_ox_sonicOrificeIn_list, P_ox_sonicOrificeOut_list, P_ox_injectorIn_list]
+    # prefixList = [P_ox_tank_list, P_ox_regulatorOut_list, P_ox_solenoidIn_list, P_ox_solenoidOut_list, P_ox_sonicOrificeIn_list, P_ox_sonicOrificeOut_list, P_ox_injectorIn_list]
+    # position_names = ['tank', 'regulator outlet', 'solenoid inlet', 'solenoid outlet', 'sonic orifice inlet', 'sonic orifice outlet', 'injector inlet']
+    # while n < len(position_names):
+        
+    #     plt.figure()
+    #     plt.plot(t_list, pressureList[n], '.')
+    #     plt.title(f'Ox {position_names[n]} pressures vs time')
+    #     plt.ylabel('Pressure [psi]')
+    #     plt.xlabel('Time [seconds]')
+    #     n += 1
+        
+    # # plotting ox line velocities at different positions vs time
+    # n = 0
+    # velocityList = [V_ox_regulatorOut_list, V_ox_solenoidIn_list, V_ox_solenoidOut_list, V_ox_sonicOrificeIn_list, V_ox_sonicOrificeOut_list, V_ox_injectorIn_list]
+    # for i in range(0, len(velocityList)):
+    #     for j in range(0, len(velocityList[i])):
+    #         velocityList[i][j] = velocityList[i][j] * m_to_ft
+    # prefixList = [V_ox_regulatorOut_list, V_ox_solenoidIn_list, V_ox_solenoidOut_list, V_ox_sonicOrificeIn_list, V_ox_sonicOrificeOut_list, V_ox_injectorIn_list]
+    # position_names = ['regulator outlet', 'solenoid inlet', 'solenoid outlet', 'sonic orifice inlet', 'sonic orifice outlet', 'injector inlet']
+    # while n < len(position_names):
+        
+    #     plt.figure()
+    #     plt.plot(t_list, velocityList[n], '.')
+    #     plt.title(f'Ox {position_names[n]} velocities vs time')
+    #     plt.ylabel('Velocity [ft/s]')
+    #     plt.xlabel('Time [seconds]')
+    #     n += 1
+
+    # # plotting ox line Mach numbers at different positions vs time
+    # n = 0
+    # MachList = [M_ox_regulatorOut_list, M_ox_solenoidIn_list, M_ox_solenoidOut_list, M_ox_sonicOrificeIn_list, M_ox_sonicOrificeOut_list, M_ox_injectorIn_list]
+    # prefixList = [M_ox_regulatorOut_list, M_ox_solenoidIn_list, M_ox_solenoidOut_list, M_ox_sonicOrificeIn_list, M_ox_sonicOrificeOut_list, M_ox_injectorIn_list]
+    # position_names = ['regulator outlet', 'solenoid inlet', 'solenoid outlet', 'sonic orifice inlet', 'sonic orifice outlet', 'injector inlet']
+    # while n < len(position_names):
+        
+    #     plt.figure()
+    #     plt.plot(t_list, MachList[n], '.')
+    #     plt.title(f'Ox {position_names[n]} Mach numbers vs time')
+    #     plt.ylabel('Mach number')
+    #     plt.xlabel('Time [seconds]')
+    #     n += 1    
+        
+        
+    # # plotting ox line temperatures at different positions vs time
+    # n = 0
+    # tempList = [T_ox_regulatorOut_list, T_ox_solenoidIn_list, T_ox_solenoidOut_list, T_ox_sonicOrificeIn_list, T_ox_sonicOrificeOut_list, T_ox_injectorIn_list]
+    # for i in range(0, len(tempList)):
+    #     for j in range(0, len(tempList[i])):
+    #         tempList[i][j] = (tempList[i][j]-273.15)*9/5 + 32
+    # prefixList = [T_ox_regulatorOut_list, T_ox_solenoidIn_list, T_ox_solenoidOut_list, T_ox_sonicOrificeIn_list, T_ox_sonicOrificeOut_list, T_ox_injectorIn_list]
+    # position_names = ['regulator outlet', 'solenoid inlet', 'solenoid outlet', 'sonic orifice inlet', 'sonic orifice outlet', 'injector inlet']
+    # while n < len(position_names):
+        
+    #     plt.figure()
+    #     plt.plot(t_list, tempList[n], '.')
+    #     plt.title(f'Ox {position_names[n]} temperatures vs time')
+    #     plt.ylabel('Temperature [deg F]')
+    #     plt.xlabel('Time [seconds]')
+    #     n += 1     
+    
+    #############################
+    ######### FUEL PLOTTING
+    #############################
+    
+    # plotting fu line pressure at different positions vs time
     n = 0
-    pressureList = [P_ox_tank_list, P_ox_regulatorOut_list, P_ox_solenoidOut_list, P_ox_injectorIn_list]
-    position_names = ['tank', 'regulator outlet', 'solenoid outlet', 'injector inlet']
-    while n < len(positions):
+    pressureList = [P_fu_tank_list, P_fu_regulatorOut_list, P_fu_solenoidIn_list, P_fu_solenoidOut_list, P_fu_sonicOrificeIn_list, P_fu_sonicOrificeOut_list, P_fu_injectorIn_list]
+    prefixList = [P_fu_tank_list, P_fu_regulatorOut_list, P_fu_solenoidIn_list, P_fu_solenoidOut_list, P_fu_sonicOrificeIn_list, P_fu_sonicOrificeOut_list, P_fu_injectorIn_list]
+    position_names = ['tank', 'regulator outlet', 'solenoid inlet', 'solenoid outlet', 'sonic orifice inlet', 'sonic orifice outlet', 'injector inlet']
+    while n < len(position_names):
         
         plt.figure()
         plt.plot(t_list, pressureList[n], '.')
-        plt.title(f'({n+1}) Ox {position_names[n]} pressures vs time')
+        plt.title(f'Fu {position_names[n]} pressures vs time')
         plt.ylabel('Pressure [psi]')
         plt.xlabel('Time [seconds]')
-        
         n += 1
         
+    # plotting fu line velocities at different positions vs time
+    n = 0
+    velocityList = [V_fu_regulatorOut_list, V_fu_solenoidIn_list, V_fu_solenoidOut_list, V_fu_sonicOrificeIn_list, V_fu_sonicOrificeOut_list, V_fu_injectorIn_list]
+    for i in range(0, len(velocityList)):
+        for j in range(0, len(velocityList[i])):
+            velocityList[i][j] = velocityList[i][j] * m_to_ft
+    prefixList = [V_fu_regulatorOut_list, V_fu_solenoidIn_list, V_fu_solenoidOut_list, V_fu_sonicOrificeIn_list, V_fu_sonicOrificeOut_list, V_fu_injectorIn_list]
+    position_names = ['regulator outlet', 'solenoid inlet', 'solenoid outlet', 'sonic orifice inlet', 'sonic orifice outlet', 'injector inlet']
+    while n < len(position_names):
+        
+        plt.figure()
+        plt.plot(t_list, velocityList[n], '.')
+        plt.title(f'Fu {position_names[n]} velocities vs time')
+        plt.ylabel('Velocity [ft/s]')
+        plt.xlabel('Time [seconds]')
+        n += 1
+    
+    
+    
     # # plotting fu line pressure vs position at different times
     # plt.figure()
     # positions = [1, 2, 3, 4]
@@ -572,12 +889,12 @@ if not error:
     # plt.xlabel('Time [s]')
     # plt.legend(['Ox', 'Fuel'])
     
-    plt.figure()
-    plt.plot(t_list, Q_ox_SCFM_list, '.')
-    plt.title('Volumetric flow rates vs time')
-    plt.ylabel('Volumetric flow rate [SCFM]')
-    plt.xlabel('Time [s]')
-    plt.legend(['Ox'])
+    # plt.figure()
+    # plt.plot(t_list, Q_ox_SCFM_list, '.')
+    # plt.title('Volumetric flow rates vs time')
+    # plt.ylabel('Volumetric flow rate [SCFM]')
+    # plt.xlabel('Time [s]')
+    # plt.legend(['Ox'])
 
 # plt.figure()
 # plt.plot(t_list, rho_ox_tank_list, t_list, rho_fu_tank_list)

@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+ # -*- coding: utf-8 -*-
 """
 Created on Tue May 14 10:45:13 2024
 
@@ -12,14 +12,58 @@ import numpy as np
 from CoolProp import CoolProp as cp
 from CommonUnitConversions import *
 
-# Determine state 2 properties from state 1 properties
+# Determine state 2 properties from state 1 properties or vice versa
+def eqn3_97minimizer(M_1_guess, M_2, gamma, LHS):
+    
+    """
+    For use with function that solves for M1 given M2
+    
+    """
+    
+    M_2_term = -1/(gamma*M_2**2) - (gamma+1)/(2*gamma)*np.log(M_2**2/(1 + (gamma-1)/2*M_2**2))
+    M_1_term = -1/(gamma*M_1_guess**2) - (gamma+1)/(2*gamma)*np.log(M_1_guess**2/(1 + (gamma-1)/2*M_1_guess**2))
+    return abs(M_2_term - M_1_term - LHS)
 
-def eqn3_97minimizer(M_2_guess, M_1, gamma, LHS):
+def eqn3_97minimizer2(M_2_guess, M_1, gamma, LHS):
+    
+    """
+    For use with function that solves for M2 given M1
+    
+    """
     
     M_2_term = -1/(gamma*M_2_guess**2) - (gamma+1)/(2*gamma)*np.log(M_2_guess**2/(1 + (gamma-1)/2*M_2_guess**2))
     M_1_term = -1/(gamma*M_1**2) - (gamma+1)/(2*gamma)*np.log(M_1**2/(1 + (gamma-1)/2*M_1**2))
     return abs(M_2_term - M_1_term - LHS)
 
+def findM_1_constantf(gamma, f, D, M_2, delta_x):
+    """
+    Iterate to find the Mach number at station 1 according to equation 3.97 from Anderson's Modern Compressible Flow
+
+    Parameters
+    ----------
+    gamma : float or int
+        Ratio of specific heats (unitless)
+    f : float or int
+        Fanning friction factor (unitless)
+    D : float or int
+        Pipe/tube diameter in meters
+    M_2 : float or int
+        Outlet Mach number (unitless)
+    delta_x : float or int
+        Change in length from inlet to exit in meters
+
+    Returns
+    -------
+    M_1 : float or int
+        Inlet Mach number
+
+    """
+    
+    LHS = 4*f*delta_x/D # unitless
+    bounds = [0, M_2] # because flow is initially subsonic and will therefore accelerate but can't start below M = 0
+    res = minimize_scalar(eqn3_97minimizer, bounds=bounds, args=(M_2, gamma, LHS))
+    
+    return res.x
 
 def findM_2_constantf(gamma, f, D, M_1, delta_x):
     """
@@ -32,7 +76,7 @@ def findM_2_constantf(gamma, f, D, M_1, delta_x):
     f : float or int
         Fanning friction factor (unitless)
     D : float or int
-        Pipe diameter in meters
+        Pipe/tube diameter in meters
     M_1 : float or int
         Inlet Mach number (unitless)
     delta_x : float or int
@@ -40,19 +84,39 @@ def findM_2_constantf(gamma, f, D, M_1, delta_x):
 
     Returns
     -------
-    M_2 : TYPE
-        DESCRIPTION.
+    M_2 : float or int
+        Outlet Mach number
 
     """
     
     LHS = 4*f*delta_x/D # unitless
     bounds = [M_1, 1] # because flow is initially subsonic and will therefore accelerate but not above M = 1
-    res = minimize_scalar(eqn3_97minimizer, bounds=bounds, args=(M_1, gamma, LHS))
+    res = minimize_scalar(eqn3_97minimizer2, bounds=bounds, args=(M_1, gamma, LHS))
     
     return res.x
 
-def findM_2_variablef():
-    return
+def computeT_1(gamma, M_1, M_2, T_2):
+    """
+    Compute static temperature at station 1
+
+    Parameters
+    ----------
+    gamma : float or int
+        Ratio of specific heats (unitless)
+    M_1 : float or int
+        Inlet Mach number (unitless)
+    M_2 : float or int
+        Outlet Mach number (unitless)
+    T_2 : float or int
+        Outlet static temperature in K
+    Returns
+    -------
+    T_1 : float or int
+        Inlet static temperature in K
+
+    """
+    
+    return T_2/((2 + (gamma-1)*M_1**2)/(2 + (gamma-1)*M_2**2))
 
 def computeT_2(gamma, M_1, M_2, T_1):
     """
@@ -76,6 +140,30 @@ def computeT_2(gamma, M_1, M_2, T_1):
     """
     
     return T_1*(2 + (gamma-1)*M_1**2)/(2 + (gamma-1)*M_2**2)
+
+def computeP_1(gamma, M_1, M_2, P_2):
+    """
+    Compute static pressure at station 1
+
+    Parameters
+    ----------
+    gamma : float or int
+        Ratio of specific heats (unitless)
+    M_1 : float or int
+        Inlet Mach number (unitless)
+    M_2 : float or int
+        Outlet Mach number (unitless)
+    P_2 : float or int
+        Outlet static pressure in psia
+    Returns
+    -------
+    P_1 : float or int
+        Inlet static pressure in psia
+
+    """
+    
+    return P_2/((M_1/M_2)*np.sqrt((2 + (gamma-1)*M_1**2)/(2 + (gamma-1)*M_2**2)))
+
 
 def computeP_2(gamma, M_1, M_2, P_1):
     """
