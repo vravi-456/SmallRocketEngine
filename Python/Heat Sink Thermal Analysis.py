@@ -101,7 +101,7 @@ r_t = np.sqrt(A_t/pi) # m
 A_e = exit_eps*A_t # m
 r_e = np.sqrt(A_e/pi) # m
 
-L_c = 2.5 * in_to_m # m
+L_c = 2.285 * in_to_m # m
 
 theta_conv = 60 # deg, converging angle
 A_c = CR * A_t # m^2
@@ -234,8 +234,8 @@ alpha = 1.17 * 10**-4 # m^2/s
 k_w = 400 # W/m/K
 
 T_melt = 2000 # F
-t_w_throat = 2.592 # in
-t_w_barrelSection = 1.818 # in
+t_w_throat = 2.602 # in
+t_w_barrelSection = 1.793 # in
 d_list = np.linspace(0, 3.0 * in_to_m, 100)
 T_radial = np.zeros(len(d_list)) # stores radial temperature distribution for a single time step at a single axial location
 T_allTime = np.zeros((len(t_list), len(d_list))) # stores radial temperature distributions for all time steps at a single axial location

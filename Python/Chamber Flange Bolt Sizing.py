@@ -1,3 +1,7 @@
+from DrivingDesignParameters import P_c
+import numpy as np
+
+pi = np.pi
 pressureFOS = 2;
 t_layer_top = 0.2 # in
 d_stock = 6 # in, diameter of chamber round stock = OD of flange
@@ -23,7 +27,7 @@ von_Mises_stress = np.sqrt(max_tangential_stress**2 - max_longitudinal_stress*ma
 flangeFOS = flangeYieldStress/max(max_longitudinal_stress, max_tangential_stress);
 vonMisesFOS = flangeYieldStress/von_Mises_stress;
 
-d_nom = d_maj;
+d_nom = d_maj
 A_tensile = (pi/4)*(d_nom - 0.9743/TPI)**2 # in^2, tensile stress area
 
 S_proof = 0.85*S_ty_bolt # psi, min proof strength

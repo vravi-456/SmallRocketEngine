@@ -7,10 +7,16 @@ void setup() {
 
 void loop() {
   // put your main code here, to run repeatedly:
+
+  // close for 3 seconds
   digitalWrite(relayPin, HIGH);
-  delay(2000);
+  delay(3000);
+
+  // open for 1000 seconds
   digitalWrite(relayPin, LOW);
-  delay(10000);
+  delay(1000000);
+
+  // close for two seconds
   digitalWrite(relayPin, HIGH);
   delay(2000);
 }

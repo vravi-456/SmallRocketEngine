@@ -24,7 +24,7 @@ from FannoFlow import *
 from CommonUnitConversions import *
 from FlowCurveInterpolator import computeEndpoint, computeFlowRate
 
-def findP2_massBalance(P_2, C_d, A_t, gamma, R, T, rho, regSetPressure, S_g, C_v_solenoid, P_tank, fluid):
+def findP2_massBalance(P_2, C_d, A_t, gamma, R, T, regSetPressure, S_g, C_v_solenoid, P_tank, fluid):
     """
     Enforce conservation of mass and iterate on the solenoid downstream pressure until it converges
 
@@ -42,8 +42,6 @@ def findP2_massBalance(P_2, C_d, A_t, gamma, R, T, rho, regSetPressure, S_g, C_v
         Specific gas constant in J/kg/K
     T : float or int
         Stagnation temperature upstream of sonic orifice
-    rho : float or int
-        Density
     regSetPressure : float or int
         The pressure the regulator is enforcing on its downstream side
     S_g : float or int
@@ -63,15 +61,20 @@ def findP2_massBalance(P_2, C_d, A_t, gamma, R, T, rho, regSetPressure, S_g, C_v
     """
     
     mdot = C_d*(P_2*psi_to_Pa)*A_t*np.sqrt(gamma/(R*T))*(2/(gamma+1))**((gamma+1)/(2*(gamma-1))) # kg/s
+    rho = cp.PropsSI('D', 'T', T, 'P', P_2 * psi_to_Pa, fluid) # kg/m^3
     Q = mdot/rho # m^3/s
     
     Z = cp.PropsSI('Z', 'P', P_2*psi_to_Pa, 'T', T, fluid)
-    Q_SCFM = Q / Z * (P_tank*Pa_to_psi)/14.7 * m3_to_ft3 * min_to_s # ft^3/min
+    Q_SCFM = Q / Z * (P_2/14.7) * m3_to_ft3 * min_to_s # ft^3/min
     
     # compute pressure downstream of solenoid valve (assume not choked)
     bounds = [P_c, regSetPressure]
     res = minimize_scalar(findP2_subcriticalFlow, bounds=bounds, args=(regSetPressure, C_v_solenoid, Q_SCFM, S_g))
     P_solenoidOut = res.x # psi
+    
+    # account for frictional pressure drop between solenoid valve outlet and sonic orifice inlet
+    # P_sonicOrificeIn = 
+    
     
     return abs(P_2 - P_solenoidOut)
 
@@ -135,7 +138,7 @@ def extractLinePressures(t, fluid):
         P_3 = P_ox_solenoidOut_list[i]
         P_4 = P_ox_injectorIn_list[i]
     
-    if fluid == 'fu' or fluid == 'methane' or fluid == 'CH4':
+    if fluid == 'fu' or fluid == 'hydrogen' or fluid == 'H2':
         
         P_1 = P_fu_tank_list[i]
         P_2 = regSetPressureFu
@@ -262,7 +265,9 @@ S_g_ox = 1.105
 gamma = 1.4
 chokedPressureRatio = ((gamma+1)/2)**(gamma/(gamma-1)) # upstream over downstream
 P_ox_regulatorOut_init = 450 + 14.7 # psia, outlet pressure, will change due to supply pressure effect
-C_d_ox_SO = 1 # sonic orifice Cd
+C_d_ox_SO = 0.6 # sonic orifice Cd
+D_SO = 0.055 # sonic orifice diameter
+A_SO = np.pi*D_SO**2/4 # sonic orifice area, in^2
 C_d_ox_inj = 1 # ox injector element Cd
 R = 8.314 / (32/1000) # J/kg/K
 SPE = 1.5 # Supply Pressure Effect (%). Found on page 6 of MS-02-230. For regulator with Cv = 0.06 and pressure control range between 0 and above 250 psig. In my case it's between 0 and 500 psig.
@@ -275,6 +280,14 @@ for i, t in enumerate(t_list):
         P_ox_tank = P_ox_tank_0 # psi
         rho_ox = cp.PropsSI('D', 'T', T_ox_tank_0, 'P', P_ox_tank * psi_to_Pa, 'oxygen') # kg/m^3
         m_ox = rho_ox*V_ox_tank # kg
+        
+        # # determine mass flow rate through sonic orifice
+        # res = minimize_scalar(findP2_massBalance, bounds=[], args=(C_d_ox_SO, A_SO, gamma, R, T_ox_tank_0, ))
+        # P_ox_solenoidOut = res.x
+        
+        # mdot = C_d*(P_2*psi_to_Pa)*A_SO*np.sqrt(gamma/(R*T))*(2/(gamma+1))**((gamma+1)/(2*(gamma-1))) # kg/s
+        # rho = cp.PropsSI('D', 'T', T, 'P', P_2 * psi_to_Pa, fluid) # kg/m^3
+        # Q = mdot/rho # m^3/s
     
         # use inlet pressure (either tank pressure or tank pressure minus losses) and outlet pressure reg will provide (accounting for SPE) to determine N2 flow rate in SCFM
         # assumes immediate mechanical response of regulator
@@ -325,6 +338,7 @@ for i, t in enumerate(t_list):
         rho_ox_injectorIn = cp.PropsSI('D', 'T', T_ox_injectorIn, 'P', P_ox_injectorIn * psi_to_Pa, 'oxygen') # kg/m^3
         c_p = cp.PropsSI('Cpmass', 'T', T_ox_injectorIn, 'P', P_ox_injectorIn * psi_to_Pa, 'oxygen') # J/kg/K
         A_ox_2 = mdot_ox/(C_d_ox_inj*rho_ox_injectorIn*np.sqrt(2*c_p*T_ox_injectorIn*((P_c/P_ox_injectorIn)**(2/gamma) - (P_c/P_ox_injectorIn)**((gamma+1)/gamma)))) # m^2, injector outlet area
+        # 0.09266288424970333 in diameter
         
         # determine velocity, Mach number, and thermodynamic state at sonic orifice outlet and injector inlet        
         V_ox_injectorIn = mdot_ox/(rho_ox_injectorIn*A_tube) # m/s  # velocity at injector inlet
@@ -466,22 +480,22 @@ d_ox_SO = np.sqrt(4*A_t/np.pi)*m_to_in
 C_v_ox_solenoid = C_v_solenoid
 
 # fuel side
-S_g_fu = 0.554
-gamma = 1.32
+S_g_fu = 0.070
+gamma = 1.41
 chokedPressureRatio = ((gamma+1)/2)**(gamma/(gamma-1)) # upstream over downstream
 P_fu_regulatorOut_init = 450 + 14.7 # psia, outlet pressure, will change due to supply pressure effect
 C_d_fu_SO = 1 # sonic orifice Cd
 C_d_fu_inj = 1 # fu injector element Cd
 R = 8.314 / (16/1000) # J/kg/K
 SPE = 1.5 # Supply Pressure Effect (%). Found on page 6 of MS-02-230. For regulator with Cv = 0.06 and pressure control range between 0 and above 250 psig. In my case it's between 0 and 500 psig.
-F_g = 1.32 # specific gravity correction factor, page 4 of MS-06-114
+F_g = 3.72 # specific gravity correction factor, page 4 of MS-06-114
 C_v_solenoid = 1.7
 for i, t in enumerate(t_list):
     
     if t == 0:
 
         P_fu_tank = P_fu_tank_0 # psi
-        rho_fu = cp.PropsSI('D', 'T', T_fu_tank_0, 'P', P_fu_tank * psi_to_Pa, 'methane') # kg/m^3
+        rho_fu = cp.PropsSI('D', 'T', T_fu_tank_0, 'P', P_fu_tank * psi_to_Pa, 'hydrogen') # kg/m^3
         m_fu = rho_fu*V_fu_tank # kg
     
         # use inlet pressure (either tank pressure or tank pressure minus losses) and outlet pressure reg will provide (accounting for SPE) to determine N2 flow rate in SCFM
@@ -490,13 +504,13 @@ for i, t in enumerate(t_list):
         P_fu_regulatorOut = P_fu_regulatorOut_init # psia  
         Q_N2_SCFM = computeFlowRate(x_list[2], y_list[2], x_endpoint, y_endpoint, P_fu_regulatorOut); # ft^3/min, here is where you interpolate the flow curve
     
-        # manipulate N2 SCFM value to get CH4 flow rate in m^3/s
+        # manipulate N2 SCFM value to get H2 flow rate in m^3/s
         Q_fu_SCFM = Q_N2_SCFM * F_g # ft^3/min
-        Z = cp.PropsSI('Z', 'P', P_fu_regulatorOut * psi_to_Pa, 'T', T_fu_tank_0, 'methane')
+        Z = cp.PropsSI('Z', 'P', P_fu_regulatorOut * psi_to_Pa, 'T', T_fu_tank_0, 'hydrogen')
         Q_fu = Q_fu_SCFM * Z * 14.7/P_fu_regulatorOut * ft3_to_m3 * s_to_min # m^3/s
         
         # multiply by density to get mdot in kg/s
-        rho_fu_regulatorOut = cp.PropsSI('D', 'T', T_fu_tank_0, 'P', P_fu_regulatorOut * psi_to_Pa, 'methane') # kg/m^3
+        rho_fu_regulatorOut = cp.PropsSI('D', 'T', T_fu_tank_0, 'P', P_fu_regulatorOut * psi_to_Pa, 'hydrogen') # kg/m^3
         mdot_fu = Q_fu * rho_fu_regulatorOut # kg/s, compute the mass flow rate through the line using quantities that are present immediately dowstream of the regulator
         
         # determine velocity, Mach number, and thermodynamic state at regulator outlet and solenoid inlet
@@ -530,9 +544,10 @@ for i, t in enumerate(t_list):
         P_fu_injectorIn = (1 + dP_Pc) * P_c # psi
         dP_inj = (P_fu_injectorIn - P_c) * psi_to_Pa # Pa
         T_fu_injectorIn = T_fu_tank_0
-        rho_fu_injectorIn = cp.PropsSI('D', 'T', T_fu_injectorIn, 'P', P_fu_injectorIn * psi_to_Pa, 'methane') # kg/m^3
-        c_p = cp.PropsSI('Cpmass', 'T', T_fu_injectorIn, 'P', P_fu_injectorIn * psi_to_Pa, 'methane') # J/kg/K
+        rho_fu_injectorIn = cp.PropsSI('D', 'T', T_fu_injectorIn, 'P', P_fu_injectorIn * psi_to_Pa, 'hydrogen') # kg/m^3
+        c_p = cp.PropsSI('Cpmass', 'T', T_fu_injectorIn, 'P', P_fu_injectorIn * psi_to_Pa, 'hydrogen') # J/kg/K
         A_fu_2 = mdot_fu/(C_d_fu_inj*rho_fu_injectorIn*np.sqrt(2*c_p*T_fu_injectorIn*((P_c/P_fu_injectorIn)**(2/gamma) - (P_c/P_fu_injectorIn)**((gamma+1)/gamma)))) # m^2, injector outlet area
+        # 0.09346162076603982 in diameter
         
         # determine velocity, Mach number, and thermodynamic state at sonic orifice outlet and injector inlet        
         V_fu_injectorIn = mdot_fu/(rho_fu_injectorIn*A_tube) # m/s  # velocity at injector inlet
@@ -564,7 +579,7 @@ for i, t in enumerate(t_list):
 
       # compute new tank pressure
       rho_fu = m_fu/V_fu_tank # kg/m^3
-      P_fu_tank = cp.PropsSI('P', 'Dmass', rho_fu, 'T', T_fu_tank_0, 'methane') * Pa_to_psi # psi
+      P_fu_tank = cp.PropsSI('P', 'Dmass', rho_fu, 'T', T_fu_tank_0, 'hydrogen') * Pa_to_psi # psi
         
       P_outlet_old = P_fu_regulatorOut_list[i-1] * psi_to_Pa # Pa
       dP_inlet = abs(P_fu_tank - P_fu_tank_list[i-1]) * psi_to_Pa # Pa, assumes tank pressure is equivalent to regulator inlet
@@ -575,13 +590,13 @@ for i, t in enumerate(t_list):
       P_fu_regulatorOut = P_outlet * Pa_to_psi # psi  
       Q_N2_SCFM = computeFlowRate(x_list[2], y_list[2], x_endpoint, y_endpoint, P_fu_regulatorOut); # ft^3/min, here is where you interpolate the flow curve
       
-      # manipulate N2 SCFM value to get CH4 flow rate in m^3/s
+      # manipulate N2 SCFM value to get H2 flow rate in m^3/s
       Q_fu_SCFM = Q_N2_SCFM * F_g # ft^3/min
-      Z = cp.PropsSI('Z', 'P', P_outlet, 'T', T_fu_tank_0, 'methane')
+      Z = cp.PropsSI('Z', 'P', P_outlet, 'T', T_fu_tank_0, 'hydrogen')
       Q_fu = Q_fu_SCFM * Z * 14.7/(P_outlet*Pa_to_psi) * ft3_to_m3 * s_to_min # m^3/s
       
       # multiply by density to get mdot in kg/s
-      rho_fu_regulatorOut = cp.PropsSI('D', 'T', T_fu_tank_0, 'P', P_fu_regulatorOut * psi_to_Pa, 'methane') # kg/m^3
+      rho_fu_regulatorOut = cp.PropsSI('D', 'T', T_fu_tank_0, 'P', P_fu_regulatorOut * psi_to_Pa, 'hydrogen') # kg/m^3
       mdot_fu = Q_fu * rho_fu_regulatorOut # kg/s, compute the mass flow rate through the line using quantities that are present immediately dowstream of the regulator
       
       # determine velocity, Mach number, and thermodynamic state at regulator outlet and solenoid inlet
@@ -596,7 +611,7 @@ for i, t in enumerate(t_list):
       
       # get solenoid outlet pressure
       bounds = [P_c, P_fu_solenoidIn]
-      # res = minimize_scalar(findP2_massBalance, bounds=bounds, args=(C_d_fu_SO, A_t, gamma, R, T_fu_tank_0, rho_fu, P_fu_regulatorOut, S_g_fu, C_v_solenoid, P_fu_tank, 'methane'))
+      # res = minimize_scalar(findP2_massBalance, bounds=bounds, args=(C_d_fu_SO, A_t, gamma, R, T_fu_tank_0, rho_fu, P_fu_regulatorOut, S_g_fu, C_v_solenoid, P_fu_tank, 'hydrogen'))
       res = minimize_scalar(findP2_subcriticalFlow, bounds=bounds, args=(P_fu_solenoidIn, C_v_solenoid, Q_fu_SCFM, S_g_fu))
       P_fu_solenoidOut = res.x # psi
       
@@ -613,11 +628,11 @@ for i, t in enumerate(t_list):
       
       # find injector inlet pressure
       T_fu_injectorIn = T_fu_tank_0
-      res = minimize_scalar(findInjectorInletPressure, bounds=[P_c, P_up_orifice], args=(mdot_fu, C_d_fu_inj, A_fu_2, T_fu_injectorIn, gamma, P_c, 'methane'))
+      res = minimize_scalar(findInjectorInletPressure, bounds=[P_c, P_up_orifice], args=(mdot_fu, C_d_fu_inj, A_fu_2, T_fu_injectorIn, gamma, P_c, 'hydrogen'))
       P_fu_injectorIn = res.x # psi
       
       # determine velocity, Mach number, and thermodynamic state at sonic orifice outlet and injector inlet              
-      rho_fu_injectorIn = cp.PropsSI('D', 'T', T_fu_injectorIn, 'P', P_fu_injectorIn * psi_to_Pa, 'methane') # kg/m^3
+      rho_fu_injectorIn = cp.PropsSI('D', 'T', T_fu_injectorIn, 'P', P_fu_injectorIn * psi_to_Pa, 'hydrogen') # kg/m^3
       V_fu_injectorIn = mdot_fu/(rho_fu_injectorIn*A_tube) # m/s  # velocity at injector inlet
       # print(V_fu_injectorIn, V_fu_injectorIn**2/c_p) # if 1/8" lines used (0.105" ID), temperature difference between static and stagnation will be less than 1 deg
       M_fu_injectorIn = V_fu_injectorIn/np.sqrt(gamma*R*T_fu_injectorIn) # apprfuimating injector inlet temp as tank temp (unsure how to get exact answer), apprfuimation gets better as velocity decreases since difference between static and stagnation temp decreases
@@ -641,7 +656,7 @@ for i, t in enumerate(t_list):
     m_fu_list[i] = m_fu
     mdot_fu_list[i] = mdot_fu
     rho_fu_tank_list[i] = rho_fu
-    Z_fu_list[i] = cp.PropsSI('Z', 'P', P_fu_tank, 'T', T_fu_tank_0, 'methane')
+    Z_fu_list[i] = cp.PropsSI('Z', 'P', P_fu_tank, 'T', T_fu_tank_0, 'hydrogen')
     P_fu_tank_list[i] = P_fu_tank # psi
     P_fu_regulatorOut_list[i] = P_fu_regulatorOut # psi
     P_fu_solenoidIn_list[i] = P_fu_solenoidIn    
@@ -744,9 +759,9 @@ if not error:
     
     # plt.legend(legendString)
     
-    ###################################
-    ########### OX PLOTTING
-    ###################################
+    # ###################################
+    # ########### OX PLOTTING
+    # ###################################
     
     # # plotting ox line pressure at different positions vs time
     # n = 0
@@ -811,9 +826,9 @@ if not error:
     #     plt.xlabel('Time [seconds]')
     #     n += 1     
     
-    #############################
-    ######### FUEL PLOTTING
-    #############################
+    ############################
+    ######## FUEL PLOTTING
+    ############################
     
     # plotting fu line pressure at different positions vs time
     n = 0
